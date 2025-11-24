@@ -1,0 +1,57 @@
+<div class="diagram-mapping" data-diagram-mapping>
+  <svg class="diagram-mapping__connector-layer" data-connector-layer aria-hidden="true"></svg>
+
+  <div class="diagram-mapping__grid">
+    <section class="diagram-mapping__diagram-panel">
+      <header class="diagram-mapping__panel-header">
+        <p class="diagram-mapping__eyebrow">Mapping canvas</p>
+        <h2 class="diagram-mapping__title">GI procedure diagram</h2>
+        <p class="diagram-mapping__hint">Click a hotspot to focus that region and follow the arrow to related captures.</p>
+      </header>
+
+      <div class="diagram-mapping__diagram-shell" data-diagram-shell>
+        <img class="diagram-mapping__diagram-img" data-diagram-img alt="Annotated GI tract diagram" src="">
+        <svg class="diagram-mapping__marker-layer" data-marker-layer aria-label="Diagram hotspots"></svg>
+      </div>
+
+      <div class="diagram-mapping__legend" data-legend></div>
+    </section>
+
+    <section class="diagram-mapping__thumb-panel">
+      <header class="diagram-mapping__panel-header diagram-mapping__panel-header--tight">
+        <div>
+          <p class="diagram-mapping__eyebrow">Captures</p>
+          <h2 class="diagram-mapping__title">Operative note attachments</h2>
+          <p class="diagram-mapping__hint" data-selected-copy>Select a region or thumbnail to jump around the diagram.</p>
+        </div>
+        <div class="diagram-mapping__controls">
+          <label class="diagram-mapping__control">
+            <span>Region filter</span>
+            <select data-group-filter></select>
+          </label>
+          <label class="diagram-mapping__control">
+            <span>Sort by</span>
+            <select data-sort-select>
+              <option value="group">Region</option>
+              <option value="name">Alphabetical</option>
+            </select>
+          </label>
+        </div>
+      </header>
+
+      <div class="diagram-mapping__thumb-list" data-thumb-list></div>
+    </section>
+  </div>
+
+  <div class="diagram-mapping__lightbox" data-lightbox hidden>
+    <div class="diagram-mapping__lightbox-backdrop" data-lightbox-close></div>
+    <div class="diagram-mapping__lightbox-body">
+      <button class="diagram-mapping__lightbox-close" type="button" data-lightbox-close aria-label="Close gallery">×</button>
+      <div class="diagram-mapping__lightbox-meta">
+        <h3 data-lightbox-title></h3>
+        <p data-lightbox-context></p>
+      </div>
+      <div class="diagram-mapping__lightbox-track" data-lightbox-track></div>
+    </div>
+  </div>
+</div>

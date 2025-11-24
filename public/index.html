@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GI Operative Note - Diagram Mapper</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./components/diagram_mapping/diagram_mapping.css">
+  <link rel="stylesheet" href="./components/controls/controls.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Operative note builder</p>
+        <h1>Attach captures to the anatomy diagram</h1>
+        <p class="lede">Hotspots are pre-seeded from the diagram mapping JSON. Click a marker or thumbnail to visualize where each image was captured and open the full gallery for that region.</p>
+      </div>
+      <div class="app-badge">
+        <span>Diagram</span>
+        <strong>GI Tract</strong>
+      </div>
+    </header>
+
+    <section class="app-section app-layout">
+      <div class="app-panel app-panel--controls">
+        <div id="controls-root"></div>
+      </div>
+      <div class="app-panel app-panel--opnote">
+        <div id="diagram-mapping-root"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./index.js"></script>
+</body>
+</html>
