@@ -1,0 +1,57 @@
+<div class="settings-panel">
+  <div class="block">
+    <div class="block__header">
+      <div>
+        <p class="badge">Image intake</p>
+        <h2>Upload & classify</h2>
+      </div>
+      <span class="subtle">JPEG &amp; PNG</span>
+    </div>
+    <label class="dropzone" data-role="image-dropzone">
+      <input type="file" data-role="image-input" accept="image/*" multiple hidden>
+      <div class="dropzone__content">
+        <svg class="icon icon--cloud" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M7.5 18.5a4.5 4.5 0 0 1-.25-9 6 6 0 0 1 11.62 1.57A3.63 3.63 0 0 1 18.5 18.5H7.5Zm4.5-1.5 3-3h-2V9h-2v5h-2l3 3Z"/>
+        </svg>
+        <div>
+          <strong>Drop images or click to browse</strong>
+          <p>We will classify each frame and fetch thumbnails automatically.</p>
+        </div>
+      </div>
+    </label>
+    <div class="queued" data-role="queued-list"></div>
+    <button class="primary" data-action="classify">
+      <span class="button-label">Classify images</span>
+      <span class="button-spinner" aria-hidden="true">
+        <span class="spinner spinner--button"></span>
+      </span>
+    </button>
+  </div>
+
+  <div class="block">
+    <div class="block__header">
+      <div>
+        <p class="badge">Operative note</p>
+        <h2>Upload base note</h2>
+      </div>
+      <span class="subtle">.txt or .md</span>
+    </div>
+    <label class="file-pill">
+      <input type="file" data-role="opnote-file" accept=".txt,.md,.markdown" hidden>
+      <svg class="icon icon--file" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm7 1.5V9h4.5L14 4.5ZM9 13v-1.5h6V13H9Zm0 3v-1.5h6V16H9Z"/>
+      </svg>
+      <span>Upload draft operative note</span>
+    </label>
+    <textarea data-role="opnote-input" rows="8" placeholder="Paste or upload your operative note draft..."></textarea>
+    <div class="action-row">
+      <button class="ghost" data-action="clear-opnote">Clear</button>
+      <button class="primary" data-action="annotate">
+        <span class="button-label">Annotate with images</span>
+        <span class="button-spinner" aria-hidden="true">
+          <span class="spinner spinner--button"></span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>

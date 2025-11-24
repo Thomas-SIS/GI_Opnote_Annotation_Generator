@@ -1,0 +1,7 @@
+openai
+Pillow
+fastapi
+uvicorn
+gunicorn
+aiosqlite
+Jinja2

@@ -1,0 +1,46 @@
+<div class="image-diagram">
+  <div class="diagram__header">
+    <div>
+      <p class="badge">Anatomy map</p>
+      <h2>Diagram & evidence</h2>
+      <p class="subtle">Hover to see possible sites. Thumbnails stack when labels overlap.</p>
+    </div>
+    <div class="legend" data-role="legend"></div>
+  </div>
+  <div class="diagram__stage">
+    <img src="/public/assets/diagram.jpg" alt="GI diagram" class="diagram__image">
+    <div class="diagram__overlay" data-role="overlay"></div>
+  </div>
+  <div class="diagram__empty" data-role="empty-state"></div>
+  <div class="lightbox" data-role="lightbox">
+    <div class="lightbox__chrome">
+      <button class="lightbox__nav" data-dir="prev" aria-label="Previous image">
+        <span class="chevron chevron--left" aria-hidden="true"></span>
+      </button>
+      <div class="lightbox__content">
+        <img data-role="lightbox-image" alt="Full image">
+        <div class="lightbox__details">
+          <p class="lightbox__caption" data-role="lightbox-caption"></p>
+          <div class="lightbox__meta">
+            <span class="lightbox__pill" data-role="lightbox-label"></span>
+            <span class="lightbox__pill lightbox__pill--muted" data-role="lightbox-filename"></span>
+          </div>
+          <div class="lightbox__text">
+            <h4>Reasoning</h4>
+            <p data-role="lightbox-reasoning"></p>
+          </div>
+          <div class="lightbox__text">
+            <h4>Description</h4>
+            <p data-role="lightbox-description"></p>
+          </div>
+        </div>
+      </div>
+      <button class="lightbox__nav" data-dir="next" aria-label="Next image">
+        <span class="chevron chevron--right" aria-hidden="true"></span>
+      </button>
+    </div>
+    <button class="lightbox__close" data-role="lightbox-close" aria-label="Close lightbox">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+</div>

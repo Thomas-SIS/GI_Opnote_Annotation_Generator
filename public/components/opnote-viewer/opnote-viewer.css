@@ -1,0 +1,45 @@
+.opnote-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.opnote-viewer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.opnote-viewer__status {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.opnote-viewer__body {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 160px;
+  overflow-x: auto;
+}
+
+.opnote-viewer__body h1,
+.opnote-viewer__body h2,
+.opnote-viewer__body h3 {
+  margin-top: 0.6em;
+}
+
+.opnote-viewer__body pre {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.opnote-viewer__body code {
+  font-family: "Space Grotesk", "Inter", monospace;
+}

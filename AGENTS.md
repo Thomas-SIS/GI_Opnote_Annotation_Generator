@@ -82,7 +82,7 @@ If you add a function/class without a docstring, **it is considered incomplete w
 
 ### 2.1 Component-Based Architecture
 
-* The frontend uses a **component-based architecture**.
+* The frontend uses a **component-based architecture** compatible with Jinja2.
 * **Each component gets its own directory** containing:
 
   * one JavaScript file (`*.js`)
