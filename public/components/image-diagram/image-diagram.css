@@ -56,7 +56,11 @@
 
 .diagram__overlay {
   position: absolute;
-  inset: 0;
+  /* overlay will be sized and positioned to match the rendered image */
+  top: 0;
+  left: 0;
+  width: 100px; /* placeholder, updated by JS to match image */
+  height: 100px; /* placeholder, updated by JS to match image */
   pointer-events: none;
 }
 

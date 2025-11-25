@@ -27,6 +27,7 @@ export class ImageDiagram {
     const template = await loadTemplate("./image-diagram.html", import.meta.url);
     this.container.innerHTML = template;
     this.overlayEl = this.container.querySelector("[data-role='overlay']");
+    this.imageEl = this.container.querySelector(".diagram__image");
     this.legendEl = this.container.querySelector("[data-role='legend']");
     this.emptyEl = this.container.querySelector("[data-role='empty-state']");
     this.lightboxEl = this.container.querySelector("[data-role='lightbox']");
@@ -37,6 +38,7 @@ export class ImageDiagram {
     this.lightboxReasoning = this.container.querySelector("[data-role='lightbox-reasoning']");
     this.lightboxDescription = this.container.querySelector("[data-role='lightbox-description']");
     this.#wireLightbox();
+    this.#wireImageSizing();
   }
 
   setMapping(mapping) {
@@ -69,13 +71,16 @@ export class ImageDiagram {
     const grouped = this.#groupByLabel();
     Object.entries(grouped).forEach(([labelKey, items]) => {
       const coords = this.mapping[labelKey];
-      const x = coords ? coords.x * 100 : 50;
-      const y = coords ? coords.y * 100 : 50;
       const color = coords ? GROUP_COLORS[coords.group] || "#22d3ee" : "#22d3ee";
+
       const marker = document.createElement("div");
       marker.className = "marker";
-      marker.style.left = `${x}%`;
-      marker.style.top = `${y}%`;
+
+      // Position marker using percent coords but relative to the overlay/image
+      const percentX = coords ? coords.x * 100 : 50;
+      const percentY = coords ? coords.y * 100 : 50;
+      marker.dataset.percentLeft = percentX;
+      marker.dataset.percentTop = percentY;
 
       const dot = document.createElement("div");
       dot.className = "marker__dot";
@@ -99,6 +104,76 @@ export class ImageDiagram {
       });
       marker.appendChild(stack);
       this.overlayEl.appendChild(marker);
+    });
+
+    // after markers are added, update their pixel positions
+    this.#updateMarkerPositions();
+  }
+
+  #wireImageSizing() {
+    if (!this.imageEl || !this.overlayEl) return;
+
+    const stageEl = this.container.querySelector('.diagram__stage');
+
+    const updateOverlay = () => {
+      // Use layout rects and compute image position relative to the stage
+      const imgRect = this.imageEl.getBoundingClientRect();
+      const stageRect = stageEl.getBoundingClientRect();
+
+      const left = Math.round(imgRect.left - stageRect.left);
+      const top = Math.round(imgRect.top - stageRect.top);
+      const width = Math.round(imgRect.width);
+      const height = Math.round(imgRect.height);
+
+      this.overlayEl.style.top = `${top}px`;
+      this.overlayEl.style.left = `${left}px`;
+      this.overlayEl.style.width = `${width}px`;
+      this.overlayEl.style.height = `${height}px`;
+
+      this.#updateMarkerPositions();
+    };
+
+    // Call update after layout stabilizes: RAF + small timeout
+    window.requestAnimationFrame(() => {
+      updateOverlay();
+      setTimeout(updateOverlay, 50);
+    });
+
+    // Ensure update after native image load
+    this.imageEl.addEventListener('load', () => {
+      window.requestAnimationFrame(updateOverlay);
+    });
+
+    // Observe size changes on the image and stage for robust updates
+    if (typeof ResizeObserver !== 'undefined') {
+      this._diagramResizeObserver = new ResizeObserver(() => {
+        window.requestAnimationFrame(updateOverlay);
+      });
+      this._diagramResizeObserver.observe(this.imageEl);
+      this._diagramResizeObserver.observe(stageEl);
+    }
+
+    // update on window resize
+    window.addEventListener('resize', () => {
+      window.requestAnimationFrame(updateOverlay);
+    });
+  }
+
+  #updateMarkerPositions() {
+    if (!this.overlayEl) return;
+    const overlayWidth = this.overlayEl.offsetWidth || 0;
+    const overlayHeight = this.overlayEl.offsetHeight || 0;
+    const markers = Array.from(this.overlayEl.querySelectorAll('.marker'));
+    markers.forEach((marker) => {
+      const percentLeft = parseFloat(marker.dataset.percentLeft || '50');
+      const percentTop = parseFloat(marker.dataset.percentTop || '50');
+
+      const x = (percentLeft / 100) * overlayWidth;
+      const y = (percentTop / 100) * overlayHeight;
+
+      // place marker with transform to center
+      marker.style.left = `${x}px`;
+      marker.style.top = `${y}px`;
     });
   }
 
@@ -129,8 +204,8 @@ export class ImageDiagram {
     Object.entries(this.mapping).forEach(([key, coords]) => {
       const dot = document.createElement("div");
       dot.className = "marker";
-      dot.style.left = `${coords.x * 100}%`;
-      dot.style.top = `${coords.y * 100}%`;
+      dot.dataset.percentLeft = (coords.x * 100).toString();
+      dot.dataset.percentTop = (coords.y * 100).toString();
 
       const inner = document.createElement("div");
       inner.className = "marker__dot";
@@ -210,5 +285,17 @@ export class ImageDiagram {
 
   closeLightbox() {
     this.lightboxEl?.classList.remove("lightbox--active");
+  }
+
+  destroy() {
+    if (this._diagramResizeObserver) {
+      try {
+        this._diagramResizeObserver.disconnect();
+      } catch (e) {
+        // ignore
+      }
+      this._diagramResizeObserver = null;
+    }
+    window.removeEventListener('resize', this._boundOverlayUpdate);
   }
 }
