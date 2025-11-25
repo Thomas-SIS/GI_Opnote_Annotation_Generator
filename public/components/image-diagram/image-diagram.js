@@ -14,12 +14,27 @@ const GROUP_COLORS = {
   small_bowel: "#38bdf8",
 };
 
+const LABEL_ALIASES = {
+  "gastroesophageal junction (gej)": "ge_junction",
+  "ge junction": "ge_junction",
+  gej: "ge_junction",
+  "third portion (d3)": "duodenum_third_part",
+  "third portion of duodenum (d3)": "duodenum_third_part",
+  "fourth portion (d4)": "duodenum_fourth_part",
+  "fourth portion of duodenum (d4)": "duodenum_fourth_part",
+  "z line": "z_line",
+  "z-line": "z_line",
+};
+
+const DEFAULT_ASPECT_RATIO = 3 / 5;
+
 export class ImageDiagram {
   constructor(container, callbacks = {}) {
     this.container = container;
     this.callbacks = callbacks;
     this.images = [];
     this.mapping = null;
+    this.displayNameIndex = {};
     this.activeIndex = 0;
   }
 
@@ -43,6 +58,10 @@ export class ImageDiagram {
 
   setMapping(mapping) {
     this.mapping = mapping;
+    this.displayNameIndex = Object.entries(mapping || {}).reduce((acc, [key, value]) => {
+      acc[value.display_name.toLowerCase()] = key;
+      return acc;
+    }, {});
     this.#renderLegend();
     this.render();
   }
@@ -68,13 +87,14 @@ export class ImageDiagram {
     }
 
     this.emptyEl.innerHTML = "";
-    const grouped = this.#groupByLabel();
-    Object.entries(grouped).forEach(([labelKey, items]) => {
-      const coords = this.mapping[labelKey];
-      const color = coords ? GROUP_COLORS[coords.group] || "#22d3ee" : "#22d3ee";
+    const markers = this.#buildMarkers();
+    markers.forEach((markerData) => {
+      const coords = markerData.coords;
+      const color = coords ? GROUP_COLORS[markerData.group] || "#22d3ee" : "#22d3ee";
 
       const marker = document.createElement("div");
       marker.className = "marker";
+      marker.dataset.labelKey = markerData.key;
 
       // Position marker using percent coords but relative to the overlay/image
       const percentX = coords ? coords.x * 100 : 50;
@@ -89,12 +109,12 @@ export class ImageDiagram {
 
       const label = document.createElement("div");
       label.className = "marker__label";
-      label.textContent = coords?.display_name || labelKey;
+      label.textContent = markerData.displayName;
       marker.appendChild(label);
 
       const stack = document.createElement("div");
       stack.className = "thumb-stack";
-      items.forEach((img, idx) => {
+      markerData.items.forEach((img, idx) => {
         const thumb = document.createElement("div");
         thumb.className = "thumb-stack__item";
         thumb.style.zIndex = `${idx + 1}`;
@@ -113,50 +133,57 @@ export class ImageDiagram {
   #wireImageSizing() {
     if (!this.imageEl || !this.overlayEl) return;
 
-    const stageEl = this.container.querySelector('.diagram__stage');
+    const stageEl = this.container.querySelector(".diagram__stage");
 
     const updateOverlay = () => {
-      // Use layout rects and compute image position relative to the stage
-      const imgRect = this.imageEl.getBoundingClientRect();
-      const stageRect = stageEl.getBoundingClientRect();
+      const stageWidth = stageEl.clientWidth;
+      const stageHeight = stageEl.clientHeight;
+      if (!stageWidth || !stageHeight) return;
 
-      const left = Math.round(imgRect.left - stageRect.left);
-      const top = Math.round(imgRect.top - stageRect.top);
-      const width = Math.round(imgRect.width);
-      const height = Math.round(imgRect.height);
+      let overlayWidth = stageWidth;
+      let overlayHeight = stageHeight;
+      const stageRatio = stageWidth / stageHeight;
+      if (Math.abs(stageRatio - DEFAULT_ASPECT_RATIO) > 0.001) {
+        if (stageRatio > DEFAULT_ASPECT_RATIO) {
+          overlayHeight = stageHeight;
+          overlayWidth = stageHeight * DEFAULT_ASPECT_RATIO;
+        } else {
+          overlayWidth = stageWidth;
+          overlayHeight = stageWidth / DEFAULT_ASPECT_RATIO;
+        }
+      }
+
+      const left = Math.round((stageWidth - overlayWidth) / 2);
+      const top = Math.round((stageHeight - overlayHeight) / 2);
 
       this.overlayEl.style.top = `${top}px`;
       this.overlayEl.style.left = `${left}px`;
-      this.overlayEl.style.width = `${width}px`;
-      this.overlayEl.style.height = `${height}px`;
+      this.overlayEl.style.width = `${overlayWidth}px`;
+      this.overlayEl.style.height = `${overlayHeight}px`;
 
       this.#updateMarkerPositions();
     };
 
+    this._boundOverlayUpdate = () => {
+      window.requestAnimationFrame(updateOverlay);
+    };
+
     // Call update after layout stabilizes: RAF + small timeout
-    window.requestAnimationFrame(() => {
-      updateOverlay();
-      setTimeout(updateOverlay, 50);
-    });
+    this._boundOverlayUpdate();
+    setTimeout(updateOverlay, 50);
 
     // Ensure update after native image load
-    this.imageEl.addEventListener('load', () => {
-      window.requestAnimationFrame(updateOverlay);
-    });
+    this.imageEl.addEventListener("load", this._boundOverlayUpdate);
 
     // Observe size changes on the image and stage for robust updates
-    if (typeof ResizeObserver !== 'undefined') {
-      this._diagramResizeObserver = new ResizeObserver(() => {
-        window.requestAnimationFrame(updateOverlay);
-      });
+    if (typeof ResizeObserver !== "undefined") {
+      this._diagramResizeObserver = new ResizeObserver(this._boundOverlayUpdate);
       this._diagramResizeObserver.observe(this.imageEl);
       this._diagramResizeObserver.observe(stageEl);
     }
 
     // update on window resize
-    window.addEventListener('resize', () => {
-      window.requestAnimationFrame(updateOverlay);
-    });
+    window.addEventListener("resize", this._boundOverlayUpdate);
   }
 
   #updateMarkerPositions() {
@@ -229,13 +256,72 @@ export class ImageDiagram {
     });
   }
 
-  #groupByLabel() {
-    return this.images.reduce((acc, img) => {
-      const key = img.label || "unlabeled";
-      acc[key] = acc[key] || [];
-      acc[key].push(img);
-      return acc;
-    }, {});
+  #buildMarkers() {
+    const buckets = new Map();
+    this.images.forEach((img) => {
+      const normalized = this.#normalizeLabel(img.label);
+      const key = normalized.key;
+      if (!buckets.has(key)) {
+        buckets.set(key, { ...normalized, items: [] });
+      }
+      buckets.get(key).items.push(img);
+    });
+    return Array.from(buckets.values());
+  }
+
+  #normalizeLabel(label) {
+    const cleaned = (label || "").trim();
+    const lower = cleaned.toLowerCase();
+    const matched = this.#matchMappingByLabel(lower);
+    if (matched) {
+      const [key, coords] = matched;
+      return {
+        key,
+        coords,
+        displayName: coords.display_name,
+        group: coords.group,
+      };
+    }
+
+    if (cleaned) {
+      return {
+        key: lower,
+        coords: null,
+        displayName: cleaned,
+        group: null,
+      };
+    }
+
+    return {
+      key: "unlabeled",
+      coords: null,
+      displayName: "Unlabeled",
+      group: null,
+    };
+  }
+
+  #matchMappingByLabel(lowerLabel) {
+    if (!this.mapping) return null;
+
+    const aliasKey = LABEL_ALIASES[lowerLabel];
+    if (aliasKey && this.mapping[aliasKey]) {
+      return [aliasKey, this.mapping[aliasKey]];
+    }
+
+    if (this.mapping[lowerLabel]) {
+      return [lowerLabel, this.mapping[lowerLabel]];
+    }
+
+    const displayKey = this.displayNameIndex[lowerLabel];
+    if (displayKey && this.mapping[displayKey]) {
+      return [displayKey, this.mapping[displayKey]];
+    }
+
+    const slug = lowerLabel.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    if (slug && this.mapping[slug]) {
+      return [slug, this.mapping[slug]];
+    }
+    return null;
   }
 
   #wireLightbox() {
@@ -296,6 +382,12 @@ export class ImageDiagram {
       }
       this._diagramResizeObserver = null;
     }
-    window.removeEventListener('resize', this._boundOverlayUpdate);
+    if (this.imageEl && this._boundOverlayUpdate) {
+      this.imageEl.removeEventListener("load", this._boundOverlayUpdate);
+    }
+    if (this._boundOverlayUpdate) {
+      window.removeEventListener("resize", this._boundOverlayUpdate);
+    }
+    this._boundOverlayUpdate = null;
   }
 }

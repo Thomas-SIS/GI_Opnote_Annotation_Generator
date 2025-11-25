@@ -37,6 +37,7 @@
 .diagram__stage {
   position: relative;
   width: 100%;
+  aspect-ratio: 3 / 5;
   max-height: 85vh;
   border-radius: 14px;
   overflow: hidden;
@@ -46,8 +47,8 @@
 
 .diagram__image {
   width: 100%;
-  height: auto;
-  max-height: 85vh;
+  height: 100%;
+  aspect-ratio: 3 / 5;
   object-fit: contain;
   display: block;
   margin: 0 auto;
@@ -56,11 +57,10 @@
 
 .diagram__overlay {
   position: absolute;
-  /* overlay will be sized and positioned to match the rendered image */
-  top: 0;
-  left: 0;
-  width: 100px; /* placeholder, updated by JS to match image */
-  height: 100px; /* placeholder, updated by JS to match image */
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 3 / 5;
   pointer-events: none;
 }
 
