@@ -20,63 +20,63 @@
   "ge_junction": {
     "display_name": "Gastroesophageal junction (GEJ)",
     "group": "esophagus",
-    "x": 0.56,
-    "y": 0.58
+    "x": 0.53,
+    "y": 0.565
   },
 
   "cardia": {
     "display_name": "Cardia",
     "group": "stomach",
-    "x": 0.60,
+    "x": 0.555,
     "y": 0.58
   },
   "fundus": {
     "display_name": "Fundus",
     "group": "stomach",
-    "x": 0.65,
+    "x": 0.62,
     "y": 0.57
   },
   "body": {
     "display_name": "Body",
     "group": "stomach",
-    "x": 0.62,
+    "x": 0.61,
     "y": 0.63
   },
   "incisura_angularis": {
     "display_name": "Incisura angularis",
     "group": "stomach",
-    "x": 0.55,
-    "y": 0.645
+    "x": 0.52,
+    "y": 0.63
   },
   "antrum": {
     "display_name": "Antrum",
     "group": "stomach",
-    "x": 0.545,
-    "y": 0.67
+    "x": 0.51,
+    "y": 0.66
   },
   "pylorus": {
     "display_name": "Pylorus",
     "group": "stomach",
-    "x": 0.49,
+    "x": 0.46,
     "y": 0.645
   },
 
   "duodenal_bulb": {
     "display_name": "Duodenal bulb (D1)",
     "group": "duodenum",
-    "x": 0.455,
-    "y": 0.645
+    "x": 0.425,
+    "y": 0.65
   },
   "duodenum_second_part": {
     "display_name": "Second portion of duodenum (D2)",
     "group": "duodenum",
-    "x": 0.45,
+    "x": 0.41,
     "y": 0.68
   },
   "duodenum_third_part": {
     "display_name": "Third portion of duodenum (D3)",
     "group": "duodenum",
-    "x": 0.49,
+    "x": 0.46,
     "y": 0.71
   },
   "duodenum_fourth_part": {
@@ -89,44 +89,44 @@
   "cecum": {
     "display_name": "Cecum",
     "group": "colon",
-    "x": 0.32,
-    "y": 0.85
+    "x": 0.30,
+    "y": 0.86
   },
   "ascending_colon": {
     "display_name": "Ascending colon",
     "group": "colon",
-    "x": 0.32,
-    "y": 0.75
+    "x": 0.29,
+    "y": 0.77
   },
   "hepatic_flexure": {
     "display_name": "Hepatic flexure",
     "group": "colon",
-    "x": 0.34,
+    "x": 0.32,
     "y": 0.68
   },
   "transverse_colon": {
     "display_name": "Transverse colon",
     "group": "colon",
     "x": 0.52,
-    "y": 0.70
+    "y": 0.72
   },
   "splenic_flexure": {
     "display_name": "Splenic flexure",
     "group": "colon",
     "x": 0.70,
-    "y": 0.68
+    "y": 0.67
   },
   "descending_colon": {
     "display_name": "Descending colon",
     "group": "colon",
-    "x": 0.69,
-    "y": 0.80
+    "x": 0.71,
+    "y": 0.79
   },
   "sigmoid_colon": {
     "display_name": "Sigmoid colon",
     "group": "colon",
-    "x": 0.56,
-    "y": 0.89
+    "x": 0.60,
+    "y": 0.91
   },
   "rectum": {
     "display_name": "Rectum",
@@ -138,8 +138,8 @@
   "terminal_ileum": {
     "display_name": "Terminal ileum",
     "group": "small_bowel",
-    "x": 0.41,
-    "y": 0.81
+    "x": 0.38,
+    "y": 0.82
   },
   "anorectal_junction": {
     "display_name": "Anorectal junction",

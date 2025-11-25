@@ -38,7 +38,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 5;
-  max-height: 85vh;
+  max-height: 75vh;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--border);

@@ -36,9 +36,12 @@ a {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 450px 1fr;
   gap: 20px;
   padding: 22px 22px 10px;
+  max-width: 1500px;
+  margin: 22px auto 10px;
+  width: calc(100% - 44px);
 }
 
 aside {
