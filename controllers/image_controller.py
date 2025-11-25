@@ -1,6 +1,6 @@
 from fastapi import Request, UploadFile, HTTPException
 from fastapi.responses import Response
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import base64
 
 from services.openai.image_classifier import ImageClassifier
@@ -8,14 +8,22 @@ from services.thumbnail_generator import ThumbnailGenerator
 from services.openai.cost_generator import CostGenerator
 from dal.image_dal import ImageDAL
 from models.image_record import ImageRecord
+from utils.media_validation import ensure_base64_image, read_audio_bytes
 
 
-async def upload_image(request: Request, file: UploadFile) -> Dict[str, Any]:
-    """Controller to handle image upload, classification, thumbnailing, storage, and cost.
+async def upload_image(
+    request: Request,
+    file: UploadFile,
+    text_input: Optional[str] = None,
+    audio_file: Optional[UploadFile] = None,
+) -> Dict[str, Any]:
+    """Handle image upload, multimodal classification, thumbnailing, storage, and cost.
 
     Args:
         request: FastAPI Request object (used to access app.state for shared clients).
         file: Uploaded file (expected to be base64-encoded JPEG payload as bytes or uploaded file).
+        text_input: Optional user-provided text to guide classification.
+        audio_file: Optional uploaded audio narration (must be .wav).
 
     Returns:
         A dict containing: id, label, reasoning, image_description, input_tokens, output_tokens, latency, cost
@@ -23,15 +31,13 @@ async def upload_image(request: Request, file: UploadFile) -> Dict[str, Any]:
 
     # Read file bytes. Expect the client to send base64-encoded image data as file body.
     raw = await file.read()
+    b64_input = ensure_base64_image(raw)
 
-    # If client sent a file with binary image, convert to base64 string for classifier which expects base64 string
-    try:
-        # Heuristic: if the uploaded payload looks like base64 (contains only base64 chars / padding), use as-is
-        raw.decode("utf-8")
-        b64_input = raw
-    except Exception:
-        # Binary image -> base64 encode
-        b64_input = base64.b64encode(raw)
+    audio_bytes: Optional[bytes] = None
+    if audio_file:
+        audio_bytes = await read_audio_bytes(audio_file)
+
+    cleaned_text = text_input.strip() if text_input else None
 
     # Acquire shared resources from app.state
     openai_client = request.app.state.openai_client
@@ -44,7 +50,9 @@ async def upload_image(request: Request, file: UploadFile) -> Dict[str, Any]:
     image_dal = ImageDAL(db_initializer)
 
     # Classify image
-    classification = await classifier.classify_image(b64_input)
+    classification = await classifier.classify_media(
+        b64_input, text_input=cleaned_text, audio_bytes=audio_bytes
+    )
 
     label = classification.get("label")
     reasoning = classification.get("reasoning")

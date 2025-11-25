@@ -23,6 +23,8 @@ const settings = new SettingsPanel(document.getElementById("settings-panel-root"
   onClassify: classifyImages,
   onAnnotate: annotateOpnote,
   onOpnoteChange: (value) => (state.opnoteDraft = value),
+  onSaveDocumentation: saveDocumentation,
+  onSaveDictation: saveDictation,
 });
 await settings.init();
 
@@ -59,6 +61,8 @@ function enqueueImages(files) {
     thumbnailUrl: null,
     usage: null,
     error: null,
+    documentation: null,
+    dictation: null,
   }));
   state.uploads.push(...newItems);
   settings.renderQueue(state.uploads);
@@ -67,9 +71,42 @@ function enqueueImages(files) {
 }
 
 function removeImage(localId) {
+  const target = state.uploads.find((u) => u.localId === localId && u.status !== "classified");
+  if (target?.dictation?.url) {
+    URL.revokeObjectURL(target.dictation.url);
+  }
   state.uploads = state.uploads.filter((u) => u.localId !== localId || u.status === "classified");
   settings.renderQueue(state.uploads);
   updateStatus();
+}
+
+function saveDocumentation(localId, documentation) {
+  const upload = state.uploads.find((u) => u.localId === localId);
+  if (!upload) return;
+  upload.documentation = documentation;
+  settings.renderQueue(state.uploads);
+  consoleLog.add(
+    `${documentation ? "Captured" : "Cleared"} documentation for ${upload.name}.`,
+    "info"
+  );
+}
+
+function saveDictation(localId, dictation) {
+  const upload = state.uploads.find((u) => u.localId === localId);
+  if (!upload) return;
+  if (upload.dictation?.url && upload.dictation.url !== dictation?.url) {
+    URL.revokeObjectURL(upload.dictation.url);
+  }
+  upload.dictation = dictation;
+  settings.renderQueue(state.uploads);
+  consoleLog.add(`${dictation ? "Captured" : "Cleared"} dictation for ${upload.name}.`, "info");
+}
+
+function isWavFile(fileLike) {
+  if (!fileLike) return false;
+  const name = (fileLike.name || "").toLowerCase();
+  const type = (fileLike.type || "").toLowerCase();
+  return name.endsWith(".wav") || type.includes("audio/wav") || type.includes("audio/x-wav");
 }
 
 async function classifyImages() {
@@ -88,7 +125,15 @@ async function classifyImages() {
     consoleLog.add(`Classifying image ${idx + 1} of ${pending.length} (${upload.name})...`, "info");
 
     try {
-      const result = await api.uploadImage(upload.file);
+      const textInput = upload.documentation?.text ? upload.documentation.text.trim() : null;
+      const audioFile = isWavFile(upload.dictation?.blob) ? upload.dictation.blob : null;
+      if (upload.dictation?.blob && !audioFile) {
+        consoleLog.add(
+          `Skipping dictation for ${upload.name}: only .wav audio is supported.`,
+          "warning"
+        );
+      }
+      const result = await api.uploadImage(upload.file, { textInput, audioFile });
       upload.remoteId = result.id;
       upload.label = result.label;
       upload.reasoning = result.reasoning;

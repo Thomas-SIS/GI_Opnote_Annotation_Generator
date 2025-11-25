@@ -143,6 +143,11 @@ h1 {
   border: 1px solid var(--border);
 }
 
+.badge--muted {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+
 button {
   font-family: inherit;
 }

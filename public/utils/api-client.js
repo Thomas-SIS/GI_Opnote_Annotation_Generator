@@ -8,9 +8,15 @@ export class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  async uploadImage(file) {
+  async uploadImage(file, { textInput = null, audioFile = null } = {}) {
     const formData = new FormData();
     formData.append("file", file, file.name || "upload.jpg");
+    if (textInput) {
+      formData.append("text_input", textInput);
+    }
+    if (audioFile) {
+      formData.append("audio_file", audioFile, audioFile.name || "dictation.wav");
+    }
     const response = await fetch(`${this.baseUrl}/images`, {
       method: "POST",
       body: formData,

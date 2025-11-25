@@ -79,17 +79,24 @@
 
 .queued__item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
+  gap: 12px;
 }
 
 .queued__meta {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+/* Allow the meta column to shrink inside the flex item so context buttons can stay on one row */
+.queued__meta {
+  min-width: 0;
 }
 
 .queued__name {
@@ -105,6 +112,76 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.queued__context-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  /* If space is tight, allow horizontal scrolling instead of wrapping */
+  overflow-x: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+.context-btn {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.05s ease;
+}
+
+/* Keep each button on a single line and prevent it from shrinking too small */
+.context-btn {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.context-btn:hover {
+  border-color: rgba(125, 211, 252, 0.6);
+  background: rgba(125, 211, 252, 0.08);
+}
+
+.context-btn:active {
+  transform: translateY(1px);
+}
+
+.queued__context-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Ensure badges don't force layout wrapping unexpectedly */
+.queued__context-meta {
+  min-width: 0;
+}
+
+.context-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.14);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.context-pill__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.context-pill--audio {
+  background: rgba(167, 139, 250, 0.14);
 }
 
 .pill {
@@ -219,6 +296,15 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+.file-pill--wide {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.file-pill__copy p {
+  margin: 0;
+}
+
 textarea {
   width: 100%;
   background: rgba(255, 255, 255, 0.02);
@@ -241,6 +327,132 @@ textarea:focus {
   align-items: center;
   margin-top: 12px;
   gap: 10px;
+}
+
+.context-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+  overflow: auto;
+}
+
+.context-modal--open {
+  display: flex;
+}
+
+.context-modal__backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.context-modal__dialog {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  width: min(640px, 100%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+.context-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.context-modal__subtitle {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.context-modal__close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.context-grid {
+  margin: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.context-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.context-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.record-card {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(125, 211, 252, 0.03);
+}
+
+.record-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.12);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.record-button--active {
+  background: linear-gradient(135deg, #f43f5e, #fb7185);
+  color: #0b0f18;
+  border-color: transparent;
+  box-shadow: 0 12px 30px rgba(244, 63, 94, 0.35);
+}
+
+.record-button__icon {
+  font-size: 18px;
+}
+
+.audio-preview {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.audio-preview__row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.audio-preview audio {
+  width: 180px;
+}
+
+.audio-preview__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .button-spinner {

@@ -55,3 +55,67 @@
     </div>
   </div>
 </div>
+
+<div class="context-modal" data-role="context-modal" hidden>
+  <div class="context-modal__backdrop"></div>
+  <div class="context-modal__dialog">
+    <div class="context-modal__header">
+      <div>
+        <p class="badge badge--muted">Image context</p>
+        <h3 data-role="context-title">Add context</h3>
+        <p class="context-modal__subtitle" data-role="context-subtitle"></p>
+      </div>
+      <button class="context-modal__close" data-role="context-close" aria-label="Close dialog">&times;</button>
+    </div>
+
+    <div class="context-modal__body" data-context="documentation" hidden>
+      <div class="context-grid">
+        <label class="file-pill file-pill--wide">
+          <input type="file" data-role="doc-file" accept=".txt,.md,.markdown,text/plain" hidden>
+          <svg class="icon icon--file" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm7 1.5V9h4.5L14 4.5ZM9 13v-1.5h6V13H9Zm0 3v-1.5h6V16H9Z"/>
+          </svg>
+          <div class="file-pill__copy">
+            <strong>Upload .txt or Markdown</strong>
+            <p class="subtle">We will pull the text into the note.</p>
+          </div>
+        </label>
+        <p class="context-hint" data-role="doc-file-hint">No file selected yet.</p>
+        <textarea data-role="doc-textarea" rows="8" placeholder="Paste or edit supporting documentation here..."></textarea>
+      </div>
+      <div class="context-actions">
+        <button class="ghost" data-role="doc-delete">Delete</button>
+        <button class="primary" data-role="doc-save">Save documentation</button>
+      </div>
+    </div>
+
+    <div class="context-modal__body" data-context="dictation" hidden>
+      <div class="context-grid">
+        <label class="file-pill file-pill--wide">
+          <input type="file" data-role="dictation-file" accept=".wav,audio/wav,audio/x-wav" hidden>
+          <svg class="icon icon--cloud" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M7.5 18.5a4.5 4.5 0 0 1-.25-9 6 6 0 0 1 11.62 1.57A3.63 3.63 0 0 1 18.5 18.5H7.5Zm4.5-1.5 3-3h-2V9h-2v5h-2l3 3Z"/>
+          </svg>
+          <div class="file-pill__copy">
+            <strong>Upload dictation</strong>
+            <p class="subtle">WAV files only.</p>
+          </div>
+        </label>
+        <div class="record-card">
+          <button class="record-button" data-role="record-toggle">
+            <span class="record-button__icon">🎙️</span>
+            <span data-role="record-label">Start live dictation</span>
+          </button>
+          <p class="context-hint" data-role="record-status">Record to WAV or upload a WAV file.</p>
+        </div>
+        <div class="audio-preview" data-role="dictation-preview">
+          <p class="context-hint">No dictation captured yet.</p>
+        </div>
+      </div>
+      <div class="context-actions">
+        <button class="ghost" data-role="dictation-delete">Delete</button>
+        <button class="primary" data-role="dictation-save">Save dictation</button>
+      </div>
+    </div>
+  </div>
+</div>
