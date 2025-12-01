@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from openai import AsyncOpenAI
 
+from services.openai.dictation_service import DictationService
 from services.openai.image_prompts import build_system_prompt, build_user_prompt
 from services.openai.image_schema import FUNCTION_DEFINITION, FUNCTION_NAME
 from services.openai.media_inputs import build_inputs
@@ -21,6 +22,7 @@ class ImageClassifier:
             raise ValueError("OpenAI client must be provided.")
         self.client = client
         self.system_prompt = build_system_prompt()
+        self.dictation = DictationService(client)
 
     async def classify_media(
         self,
@@ -31,12 +33,17 @@ class ImageClassifier:
     ) -> Dict[str, Any]:
         """Classify an image using optional text and audio context."""
         start_time = time.time()
-        user_prompt = build_user_prompt(bool(text_input), bool(audio_bytes))
+        audio_transcript: Optional[str] = None
+        audio_present = bool(audio_bytes)
+        if audio_bytes:
+            audio_transcript = await self.dictation.transcribe(audio_bytes)
+
+        user_prompt = build_user_prompt(bool(text_input), audio_present)
         inputs = build_inputs(
             self.system_prompt,
             user_prompt,
             text_input=text_input,
-            audio_bytes=audio_bytes,
+            audio_transcript=audio_transcript,
             image_bytes=image_bytes,
         )
         response = await self._create_response(inputs)

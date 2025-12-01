@@ -1,6 +1,5 @@
 """Utilities to build multimodal input payloads for the Responses API."""
 
-import base64
 from typing import Any, Dict, List, Optional
 
 
@@ -17,7 +16,7 @@ def to_image_data_url(image_bytes: bytes) -> str:
 
 
 def build_user_content(
-    image_url: str, text_input: Optional[str], audio_bytes: Optional[bytes]
+    image_url: str, text_input: Optional[str], audio_transcript: Optional[str]
 ) -> List[Dict[str, Any]]:
     """Compose user messages so each modality is a distinct input entry."""
     messages: List[Dict[str, Any]] = []
@@ -27,26 +26,15 @@ def build_user_content(
         messages.append(
             {"type": "message", "role": "user", "content": [{"type": "input_text", "text": text_input}]}
         )
-    if audio_bytes:
-        print("audio added")
-        audio_str = base64.b64encode(audio_bytes).decode("utf-8")
+    if audio_transcript:
+        print("Audio transcript added")
         messages.append(
             {
                 "type": "message",
                 "role": "user",
-                "content": [
-                    {
-                        "type": "input_file",
-                        "file": {
-                            "data": audio_str,
-                            "mime_type": "audio/wav",
-                            "name": "audio.wav"
-                        }
-                    }
-                ]
-            }
+                "content": [{"type": "input_text", "text": f"Audio narration (transcribed): {audio_transcript}"}],
+            },
         )
-
 
     messages.append(
         {"type": "message", "role": "user", "content": [{"type": "input_image", "image_url": image_url}]}
@@ -59,7 +47,7 @@ def build_inputs(
     user_prompt: str,
     *,
     text_input: Optional[str],
-    audio_bytes: Optional[bytes],
+    audio_transcript: Optional[str],
     image_bytes: bytes,
 ) -> List[Dict[str, Any]]:
     """Build the Responses API input array with each modality separated."""
@@ -72,5 +60,5 @@ def build_inputs(
         },
         {"type": "message", "role": "user", "content": [{"type": "input_text", "text": user_prompt}]},
     ]
-    inputs.extend(build_user_content(image_url, text_input, audio_bytes))
+    inputs.extend(build_user_content(image_url, text_input, audio_transcript))
     return inputs
