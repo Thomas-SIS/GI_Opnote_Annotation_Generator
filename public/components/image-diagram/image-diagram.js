@@ -113,6 +113,19 @@ export class ImageDiagram {
       dot.style.background = color;
       marker.appendChild(dot);
 
+      const tooltip = document.createElement("div");
+      tooltip.className = "tooltip";
+      tooltip.textContent = markerData.displayName;
+      tooltip.style.display = "none";
+      marker.appendChild(tooltip);
+
+      marker.addEventListener("mouseenter", () => {
+        tooltip.style.display = "block";
+      });
+      marker.addEventListener("mouseleave", () => {
+        tooltip.style.display = "none";
+      });
+
       this.overlayEl.appendChild(marker);
 
       const side = this.#calloutSide(coords);
