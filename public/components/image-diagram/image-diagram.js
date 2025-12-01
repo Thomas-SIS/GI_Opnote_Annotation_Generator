@@ -1,5 +1,5 @@
 /* ImageDiagram
-Displays the anatomy diagram with interactive markers, stacked thumbnails,
+Displays the anatomy diagram with interactive markers, side rails of thumbnails,
 and a lightbox for navigating originals.
 */
 
@@ -45,6 +45,8 @@ export class ImageDiagram {
     this.imageEl = this.container.querySelector(".diagram__image");
     this.legendEl = this.container.querySelector("[data-role='legend']");
     this.emptyEl = this.container.querySelector("[data-role='empty-state']");
+    this.leftRail = this.container.querySelector("[data-role='rail-left']");
+    this.rightRail = this.container.querySelector("[data-role='rail-right']");
     this.lightboxEl = this.container.querySelector("[data-role='lightbox']");
     this.lightboxImg = this.container.querySelector("[data-role='lightbox-image']");
     this.lightboxCaption = this.container.querySelector("[data-role='lightbox-caption']");
@@ -74,6 +76,8 @@ export class ImageDiagram {
   render() {
     if (!this.overlayEl) return;
     this.overlayEl.innerHTML = "";
+    if (this.leftRail) this.leftRail.innerHTML = "";
+    if (this.rightRail) this.rightRail.innerHTML = "";
     if (!this.mapping) {
       this.emptyEl.innerHTML = `<div class="placeholder">Loading diagram mapping...</div>`;
       return;
@@ -88,6 +92,7 @@ export class ImageDiagram {
 
     this.emptyEl.innerHTML = "";
     const markers = this.#buildMarkers();
+    const callouts = { left: [], right: [] };
     markers.forEach((markerData) => {
       const coords = markerData.coords;
       const color = coords ? GROUP_COLORS[markerData.group] || "#22d3ee" : "#22d3ee";
@@ -95,6 +100,7 @@ export class ImageDiagram {
       const marker = document.createElement("div");
       marker.className = "marker";
       marker.dataset.labelKey = markerData.key;
+      marker.addEventListener("click", () => this.#openFirstImage(markerData));
 
       // Position marker using percent coords but relative to the overlay/image
       const percentX = coords ? coords.x * 100 : 50;
@@ -107,27 +113,15 @@ export class ImageDiagram {
       dot.style.background = color;
       marker.appendChild(dot);
 
-      const label = document.createElement("div");
-      label.className = "marker__label";
-      label.textContent = markerData.displayName;
-      marker.appendChild(label);
-
-      const stack = document.createElement("div");
-      stack.className = "thumb-stack";
-      markerData.items.forEach((img, idx) => {
-        const thumb = document.createElement("div");
-        thumb.className = "thumb-stack__item";
-        thumb.style.zIndex = `${idx + 1}`;
-        thumb.innerHTML = `<img src="${img.thumbnailUrl}" alt="Thumbnail">`;
-        thumb.addEventListener("click", () => this.openLightbox(img.remoteId));
-        stack.appendChild(thumb);
-      });
-      marker.appendChild(stack);
       this.overlayEl.appendChild(marker);
+
+      const side = this.#calloutSide(coords);
+      callouts[side].push({ y: percentY, data: markerData, color });
     });
 
     // after markers are added, update their pixel positions
     this.#updateMarkerPositions();
+    this.#renderCallouts(callouts);
   }
 
   #wireImageSizing() {
@@ -204,12 +198,78 @@ export class ImageDiagram {
     });
   }
 
+  #calloutSide(coords) {
+    if (!coords || typeof coords.x !== "number") return "right";
+    return coords.x <= 0.5 ? "left" : "right";
+  }
+
+  #renderCallouts(callouts) {
+    const sides = ["left", "right"];
+    sides.forEach((side) => {
+      const rail = side === "left" ? this.leftRail : this.rightRail;
+      if (!rail) return;
+      rail.innerHTML = "";
+      callouts[side]
+        .sort((a, b) => a.y - b.y)
+        .forEach(({ data, color }) => {
+          const card = document.createElement("div");
+          card.className = "callout";
+
+          const info = document.createElement("div");
+          info.className = "callout__info";
+
+          const dot = document.createElement("span");
+          dot.className = "callout__dot";
+          dot.style.background = color;
+
+          const text = document.createElement("div");
+          text.className = "callout__text";
+
+          const label = document.createElement("p");
+          label.className = "callout__label";
+          label.textContent = data.displayName;
+
+          const count = document.createElement("p");
+          count.className = "callout__count";
+          count.textContent = data.items.length === 1 ? "1 image" : `${data.items.length} images`;
+
+          text.appendChild(label);
+          text.appendChild(count);
+          info.appendChild(dot);
+          info.appendChild(text);
+          card.appendChild(info);
+
+          const thumbs = document.createElement("div");
+          thumbs.className = "callout__thumbs";
+          data.items.forEach((img) => {
+            const thumb = document.createElement("div");
+            thumb.className = "callout__thumb";
+            thumb.innerHTML = `<img src="${img.thumbnailUrl}" alt="Thumbnail">`;
+            thumb.addEventListener("click", (event) => {
+              event.stopPropagation();
+              this.openLightbox(img.remoteId);
+            });
+            thumbs.appendChild(thumb);
+          });
+          card.appendChild(thumbs);
+          card.addEventListener("click", () => this.#openFirstImage(data));
+          rail.appendChild(card);
+        });
+    });
+  }
+
   openLightbox(imageId) {
     const idx = this.images.findIndex((img) => img.remoteId === imageId);
     if (idx === -1) return;
     this.activeIndex = idx;
     this.#renderLightbox();
     this.lightboxEl.classList.add("lightbox--active");
+  }
+
+  #openFirstImage(markerData) {
+    const first = markerData.items?.[0];
+    if (!first) return;
+    this.openLightbox(first.remoteId);
   }
 
   #renderLegend() {

@@ -3,13 +3,17 @@
     <div>
       <p class="badge">Anatomy map</p>
       <h2>Diagram & evidence</h2>
-      <p class="subtle">Hover to see possible sites. Thumbnails stack when labels overlap.</p>
+      <p class="subtle">Hover to see possible sites. Thumbnails sit alongside the diagram for clarity.</p>
     </div>
     <div class="legend" data-role="legend"></div>
   </div>
-  <div class="diagram__stage">
-    <img src="/public/assets/diagram2.png" alt="GI diagram" class="diagram__image">
-    <div class="diagram__overlay" data-role="overlay"></div>
+  <div class="diagram__layout">
+    <div class="diagram__rail diagram__rail--left" data-role="rail-left"></div>
+    <div class="diagram__stage">
+      <img src="/public/assets/diagram2.png" alt="GI diagram" class="diagram__image">
+      <div class="diagram__overlay" data-role="overlay"></div>
+    </div>
+    <div class="diagram__rail diagram__rail--right" data-role="rail-right"></div>
   </div>
   <div class="diagram__empty" data-role="empty-state"></div>
   <div class="lightbox" data-role="lightbox">
