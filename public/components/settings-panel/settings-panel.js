@@ -1,6 +1,5 @@
 /* SettingsPanel
-Left-hand control surface for image intake and opnote uploads.
-Manages file selection, displays queue state, and surfaces classify/annotate actions.
+Left-hand control surface for session management, conversation sync, and image intake.
 */
 
 import { loadTemplate } from "../../utils/template-loader.js";
@@ -24,17 +23,23 @@ export class SettingsPanel {
     this.container.innerHTML = template;
     this.#wireUi();
     this.renderQueue([]);
+    this.setSessionState({ active: false, closed: false, autoOpnote: true });
   }
 
   #wireUi() {
-    this.dropzone = this.container.querySelector("[data-role='image-dropzone']");
-    this.imageInput = this.container.querySelector("[data-role='image-input']");
-    this.queueList = this.container.querySelector("[data-role='queued-list']");
-    this.classifyBtn = this.container.querySelector("[data-action='classify']");
+    this.sessionStatus = this.container.querySelector("[data-role='session-status']");
+    this.autoToggle = this.container.querySelector("[data-role='auto-opnote']");
+    this.startSessionBtn = this.container.querySelector("[data-action='start-session']");
+    this.closeSessionBtn = this.container.querySelector("[data-action='close-session']");
+    this.generateOpnoteBtn = this.container.querySelector("[data-action='generate-opnote']");
+    this.conversationInput = this.container.querySelector("[data-role='conversation-input']");
+    this.syncConversationBtn = this.container.querySelector("[data-action='sync-conversation']");
+    this.clearConversationBtn = this.container.querySelector("[data-action='clear-conversation']");
     this.opnoteInput = this.container.querySelector("[data-role='opnote-input']");
     this.opnoteFile = this.container.querySelector("[data-role='opnote-file']");
-    this.annotateBtn = this.container.querySelector("[data-action='annotate']");
     this.clearOpnoteBtn = this.container.querySelector("[data-action='clear-opnote']");
+    this.queueList = this.container.querySelector("[data-role='queued-list']");
+    this.classifyBtn = this.container.querySelector("[data-action='classify']");
     this.contextModal = this.container.querySelector("[data-role='context-modal']");
     this.contextBodies = this.container.querySelectorAll(".context-modal__body");
     this.contextTitle = this.container.querySelector("[data-role='context-title']");
@@ -53,30 +58,29 @@ export class SettingsPanel {
     this.recordLabel = this.container.querySelector("[data-role='record-label']");
     this.recordStatus = this.container.querySelector("[data-role='record-status']");
 
-    this.dropzone.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      this.dropzone.classList.add("dropzone--hover");
+    this.startSessionBtn?.addEventListener("click", () => {
+      this.callbacks.onStartSession?.(this.autoToggle?.checked ?? true);
     });
-    this.dropzone.addEventListener("dragleave", () => {
-      this.dropzone.classList.remove("dropzone--hover");
+    this.closeSessionBtn?.addEventListener("click", () => {
+      this.callbacks.onCloseSession?.();
     });
-    this.dropzone.addEventListener("drop", (event) => {
-      event.preventDefault();
-      this.dropzone.classList.remove("dropzone--hover");
-      const files = Array.from(event.dataTransfer.files || []).filter((f) =>
-        f.type.startsWith("image/")
-      );
-      if (files.length && this.callbacks.onImagesSelected) {
-        this.callbacks.onImagesSelected(files);
+    this.generateOpnoteBtn?.addEventListener("click", () => {
+      this.callbacks.onGenerateOpnote?.();
+    });
+    this.autoToggle?.addEventListener("change", (event) => {
+      this.callbacks.onAutoToggle?.(event.target.checked);
+    });
+    this.conversationInput?.addEventListener("input", (event) => {
+      this.callbacks.onConversationChange?.(event.target.value);
+    });
+    this.syncConversationBtn?.addEventListener("click", () => {
+      this.callbacks.onSyncConversation?.();
+    });
+    this.clearConversationBtn?.addEventListener("click", () => {
+      if (this.conversationInput) {
+        this.conversationInput.value = "";
       }
-    });
-
-    this.imageInput.addEventListener("change", (event) => {
-      const files = Array.from(event.target.files || []);
-      if (files.length && this.callbacks.onImagesSelected) {
-        this.callbacks.onImagesSelected(files);
-      }
-      this.imageInput.value = "";
+      this.callbacks.onConversationChange?.("");
     });
 
     this.classifyBtn.addEventListener("click", () => {
@@ -85,37 +89,27 @@ export class SettingsPanel {
       }
     });
 
-    this.annotateBtn.addEventListener("click", () => {
-      if (this.callbacks.onAnnotate) {
-        this.callbacks.onAnnotate(this.opnoteInput.value || "");
-      }
+    this.opnoteInput?.addEventListener("input", (event) => {
+      this.callbacks.onBaseNoteChange?.(event.target.value);
     });
 
-    this.opnoteInput.addEventListener("input", (event) => {
-      if (this.callbacks.onOpnoteChange) {
-        this.callbacks.onOpnoteChange(event.target.value);
-      }
-    });
-
-    this.opnoteFile.addEventListener("change", (event) => {
+    this.opnoteFile?.addEventListener("change", (event) => {
       const [file] = event.target.files || [];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
         this.opnoteInput.value = reader.result;
-        if (this.callbacks.onOpnoteChange) {
-          this.callbacks.onOpnoteChange(reader.result);
-        }
+        this.callbacks.onBaseNoteChange?.(reader.result);
       };
       reader.readAsText(file);
       this.opnoteFile.value = "";
     });
 
-    this.clearOpnoteBtn.addEventListener("click", () => {
-      this.opnoteInput.value = "";
-      if (this.callbacks.onOpnoteChange) {
-        this.callbacks.onOpnoteChange("");
+    this.clearOpnoteBtn?.addEventListener("click", () => {
+      if (this.opnoteInput) {
+        this.opnoteInput.value = "";
       }
+      this.callbacks.onBaseNoteChange?.("");
     });
 
     this.docFile?.addEventListener("change", (event) => {
@@ -588,10 +582,30 @@ export class SettingsPanel {
     this.classifyBtn.classList.toggle("button--busy", isBusy);
   }
 
-  setAnnotateBusy(isBusy) {
-    if (!this.annotateBtn) return;
-    this.annotateBtn.disabled = isBusy;
-    this.annotateBtn.classList.toggle("button--busy", isBusy);
+  setSessionState({ active, closed, autoOpnote }) {
+    const activeSession = !!active && !closed;
+    if (this.autoToggle && typeof autoOpnote === "boolean") {
+      this.autoToggle.checked = autoOpnote;
+    }
+    if (this.startSessionBtn) {
+      this.startSessionBtn.disabled = activeSession;
+    }
+    if (this.closeSessionBtn) {
+      this.closeSessionBtn.disabled = !activeSession;
+    }
+    if (this.generateOpnoteBtn) {
+      this.generateOpnoteBtn.disabled = !closed;
+    }
+    if (this.classifyBtn) {
+      this.classifyBtn.disabled = !activeSession;
+    }
+    if (this.sessionStatus) {
+      this.sessionStatus.textContent = active
+        ? closed
+          ? "Closed"
+          : "Live"
+        : "Idle";
+    }
   }
 
   setOpnoteValue(value) {

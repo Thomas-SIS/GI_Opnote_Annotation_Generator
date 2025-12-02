@@ -1,43 +1,22 @@
-from fastapi import Request, HTTPException
-from typing import List, Dict, Any
+"""Controller for generating operative notes from session context."""
 
-from services.openai.annotation_gen import OperativeNoteGenerator
-from dal.image_dal import ImageDAL
-from models.image_record import ImageRecord
+from typing import Any, Dict, Optional
+
+from fastapi import HTTPException, Request
+
+from services.realtime.opnote_generator import RealtimeOpnoteGenerator
+from services.realtime.session_store import SessionStore
 
 
-async def generate_opnote(request: Request, base_opnote: str, image_ids: List[int]) -> Dict[str, Any]:
-    """Generate an operative note from a base note and a list of image ids.
+async def generate_opnote(request: Request, session_id: str, base_opnote: Optional[str]) -> Dict[str, Any]:
+	"""Generate an operative note using the current session context."""
+	store: SessionStore = request.app.state.session_store
+	try:
+		session = store.get(session_id)
+	except KeyError as exc:  # pragma: no cover - translated to HTTP
+		raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    This controller retrieves the `ImageRecord`s for the provided ids,
-    invokes the `OperativeNoteGenerator`, and returns the generated
-    operative note as markdown.
+	generator = RealtimeOpnoteGenerator(request.app.state.openai_client)
+	result = await generator.generate(messages=session.messages, images=session.images, base_note=base_opnote)
 
-    Args:
-        request: FastAPI Request (used to access shared clients/state).
-        base_opnote: Partial or empty operative note text provided by the client.
-        image_ids: List of integer image ids to include as context.
-
-    Returns:
-        A dict containing the generated operative note under the key
-        `operative_note`.
-
-    Raises:
-        HTTPException(404) if any image id is not found.
-    """
-    db_initializer = request.app.state.db_initializer
-    openai_client = request.app.state.openai_client
-
-    image_dal = ImageDAL(db_initializer)
-
-    images: List[ImageRecord] = []
-    for iid in image_ids:
-        rec = await image_dal.get_image_by_id(int(iid))
-        if rec is None:
-            raise HTTPException(status_code=404, detail=f"Image id {iid} not found")
-        images.append(rec)
-
-    generator = OperativeNoteGenerator(openai_client)
-    opnote_md = await generator.generate_opnote(images=images, base_opnote=base_opnote)
-
-    return {"operative_note": opnote_md}
+	return {"operative_note": result["markdown"], "usage": result.get("usage")}

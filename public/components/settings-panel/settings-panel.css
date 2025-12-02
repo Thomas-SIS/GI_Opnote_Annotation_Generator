@@ -22,6 +22,24 @@
   margin-bottom: 10px;
 }
 
+.session-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.session-actions .primary,
+.session-actions .ghost {
+  width: auto;
+  flex: 1 1 0;
+}
+
 .block h2 {
   margin: 6px 0 0;
   letter-spacing: -0.01em;
@@ -30,33 +48,6 @@
 .subtle {
   color: var(--muted);
   font-size: 12px;
-}
-
-.dropzone {
-  display: block;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.01);
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.dropzone:hover {
-  border-color: rgba(125, 211, 252, 0.6);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.dropzone--hover {
-  border-color: rgba(125, 211, 252, 0.8);
-  background: rgba(125, 211, 252, 0.06);
-}
-
-.dropzone__content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--muted);
 }
 
 .icon {
@@ -303,6 +294,50 @@
 
 .file-pill__copy p {
   margin: 0;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+}
+
+.toggle input {
+  display: none;
+}
+
+.toggle__visual {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.2s ease;
+}
+
+.toggle__visual::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+
+.toggle input:checked + .toggle__visual {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+
+.toggle input:checked + .toggle__visual::after {
+  transform: translateX(18px);
 }
 
 textarea {

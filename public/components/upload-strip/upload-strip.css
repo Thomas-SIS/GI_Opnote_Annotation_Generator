@@ -1,0 +1,61 @@
+.upload-strip-section {
+  margin: 8px 0 12px;
+}
+
+.upload-strip {
+  width: 100%;
+}
+
+.upload-strip__inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(125, 211, 252, 0.14), rgba(255, 255, 255, 0.02));
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.08s ease;
+}
+
+.upload-strip__inner:hover {
+  border-color: rgba(125, 211, 252, 0.6);
+}
+
+.upload-strip__dropzone--hover {
+  border-color: rgba(125, 211, 252, 0.8);
+  transform: translateY(-1px);
+}
+
+.upload-strip__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.upload-strip__title {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.upload-strip__caption {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.upload-strip__caption--success {
+  color: var(--success);
+}
+
+.upload-strip__caption--error {
+  color: var(--danger);
+}

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/public/components/image-diagram/image-diagram.css">
   <link rel="stylesheet" href="/public/components/console-log/console-log.css">
   <link rel="stylesheet" href="/public/components/opnote-viewer/opnote-viewer.css">
+  <link rel="stylesheet" href="/public/components/upload-strip/upload-strip.css">
 </head>
 <body>
   <div class="app-shell">
@@ -20,11 +21,12 @@
       <header class="workspace__header">
         <div>
           <p class="eyebrow">GI annotation cockpit</p>
-          <h1>Opnote Annotation Generator</h1>
-          <p class="lede">Upload endoscopic frames, classify them, and synthesize a markdown operative note with confidence.</p>
+          <h1>Realtime Opnote Studio</h1>
+          <p class="lede">Stream endoscopic frames, classify them with OpenAI Realtime, and hand GPT-5 the full conversation to draft your operative note.</p>
         </div>
         <div class="status-pill" id="status-pill">Ready</div>
       </header>
+      <section id="upload-strip-root" class="upload-strip-section"></section>
       <section id="diagram-root" class="diagram-section"></section>
       <section id="opnote-root" class="opnote-section"></section>
     </main>

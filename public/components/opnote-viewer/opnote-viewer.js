@@ -30,7 +30,7 @@ export class OpnoteViewer {
   renderMarkdown(markdown) {
     if (!this.body) return;
     if (!markdown) {
-      this.body.innerHTML = `<div class="placeholder">No operative note yet. Upload a draft and click Annotate.</div>`;
+      this.body.innerHTML = `<div class="placeholder">No operative note yet. Close the session with auto-generate enabled or click Generate op note.</div>`;
       return;
     }
     if (this.markdownRenderer) {

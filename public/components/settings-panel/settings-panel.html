@@ -2,37 +2,58 @@
   <div class="block">
     <div class="block__header">
       <div>
-        <p class="badge">Image intake</p>
-        <h2>Upload & classify</h2>
+        <p class="badge">Session</p>
+        <h2>Realtime capture</h2>
       </div>
-      <span class="subtle">JPEG &amp; PNG</span>
+      <span class="subtle" data-role="session-status">Idle</span>
     </div>
-    <label class="dropzone" data-role="image-dropzone">
-      <input type="file" data-role="image-input" accept="image/*" multiple hidden>
-      <div class="dropzone__content">
-        <svg class="icon icon--cloud" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M7.5 18.5a4.5 4.5 0 0 1-.25-9 6 6 0 0 1 11.62 1.57A3.63 3.63 0 0 1 18.5 18.5H7.5Zm4.5-1.5 3-3h-2V9h-2v5h-2l3 3Z"/>
-        </svg>
-        <div>
-          <strong>Drop images or click to browse</strong>
-          <p>We will classify each frame and fetch thumbnails automatically.</p>
+    <div class="session-grid">
+      <label class="toggle">
+        <input type="checkbox" data-role="auto-opnote" checked>
+        <span class="toggle__visual" aria-hidden="true"></span>
+        <div class="toggle__copy">
+          <strong>Auto-generate operative note</strong>
+          <p class="subtle">If off, keep the conversation and use “Generate op note” after closing.</p>
         </div>
+      </label>
+      <div class="session-actions">
+        <button class="primary" data-action="start-session">
+          <span class="button-label">Start session</span>
+          <span class="button-spinner" aria-hidden="true">
+            <span class="spinner spinner--button"></span>
+          </span>
+        </button>
+        <button class="ghost" data-action="close-session">Close session</button>
+        <button class="ghost" data-action="generate-opnote">Generate op note</button>
       </div>
-    </label>
-    <div class="queued" data-role="queued-list"></div>
-    <button class="primary" data-action="classify">
-      <span class="button-label">Classify images</span>
-      <span class="button-spinner" aria-hidden="true">
-        <span class="spinner spinner--button"></span>
-      </span>
-    </button>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="block__header">
+      <div>
+        <p class="badge">Conversation</p>
+        <h2>Annotation stream</h2>
+      </div>
+      <span class="subtle">Synced to realtime model</span>
+    </div>
+    <textarea data-role="conversation-input" rows="6" placeholder="Capture the live narration, key maneuvers, and findings here. We sync this into every classification request."></textarea>
+    <div class="action-row">
+      <button class="ghost" data-action="clear-conversation">Clear</button>
+      <button class="primary" data-action="sync-conversation">
+        <span class="button-label">Sync conversation</span>
+        <span class="button-spinner" aria-hidden="true">
+          <span class="spinner spinner--button"></span>
+        </span>
+      </button>
+    </div>
   </div>
 
   <div class="block">
     <div class="block__header">
       <div>
         <p class="badge">Operative note</p>
-        <h2>Upload base note</h2>
+        <h2>Base draft (optional)</h2>
       </div>
       <span class="subtle">.txt or .md</span>
     </div>
@@ -41,18 +62,29 @@
       <svg class="icon icon--file" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm7 1.5V9h4.5L14 4.5ZM9 13v-1.5h6V13H9Zm0 3v-1.5h6V16H9Z"/>
       </svg>
-      <span>Upload draft operative note</span>
+      <span>Upload base operative note</span>
     </label>
-    <textarea data-role="opnote-input" rows="8" placeholder="Paste or upload your operative note draft..."></textarea>
+    <textarea data-role="opnote-input" rows="5" placeholder="Optional: paste a draft or template. We will preserve it when generating."></textarea>
     <div class="action-row">
-      <button class="ghost" data-action="clear-opnote">Clear</button>
-      <button class="primary" data-action="annotate">
-        <span class="button-label">Annotate with images</span>
-        <span class="button-spinner" aria-hidden="true">
-          <span class="spinner spinner--button"></span>
-        </span>
-      </button>
+      <button class="ghost" data-action="clear-opnote">Clear draft</button>
     </div>
+  </div>
+
+  <div class="block">
+    <div class="block__header">
+      <div>
+        <p class="badge">Image queue</p>
+        <h2>Auto classification</h2>
+      </div>
+      <span class="subtle">Uploads classify immediately</span>
+    </div>
+    <div class="queued" data-role="queued-list"></div>
+    <button class="primary" data-action="classify">
+      <span class="button-label">Process queued images</span>
+      <span class="button-spinner" aria-hidden="true">
+        <span class="spinner spinner--button"></span>
+      </span>
+    </button>
   </div>
 </div>
 
@@ -85,7 +117,12 @@
       </div>
       <div class="context-actions">
         <button class="ghost" data-role="doc-delete">Delete</button>
-        <button class="primary" data-role="doc-save">Save documentation</button>
+        <button class="primary" data-role="doc-save">
+          <span class="button-label">Save documentation</span>
+          <span class="button-spinner" aria-hidden="true">
+            <span class="spinner spinner--button"></span>
+          </span>
+        </button>
       </div>
     </div>
 
@@ -103,7 +140,7 @@
         </label>
         <div class="record-card">
           <button class="record-button" data-role="record-toggle">
-            <span class="record-button__icon">🎙️</span>
+            <span class="record-button__icon">&#9679;</span>
             <span data-role="record-label">Start live dictation</span>
           </button>
           <p class="context-hint" data-role="record-status">Record to WAV or upload a WAV file.</p>
@@ -114,7 +151,12 @@
       </div>
       <div class="context-actions">
         <button class="ghost" data-role="dictation-delete">Delete</button>
-        <button class="primary" data-role="dictation-save">Save dictation</button>
+        <button class="primary" data-role="dictation-save">
+          <span class="button-label">Save dictation</span>
+          <span class="button-spinner" aria-hidden="true">
+            <span class="spinner spinner--button"></span>
+          </span>
+        </button>
       </div>
     </div>
   </div>

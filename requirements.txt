@@ -5,3 +5,4 @@ uvicorn
 gunicorn
 aiosqlite
 Jinja2
+websockets

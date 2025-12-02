@@ -7,9 +7,11 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from routes.image_route import router as image_router
-from routes.opnote_route import router as opnote_router
+from routes.session_route import router as session_router
+from routes.realtime_ws import router as realtime_ws_router
 
 from utils.database_init import AsyncDatabaseInitializer
+from services.realtime.session_store import SessionStore
 
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
@@ -28,6 +30,9 @@ async def lifespan(app: FastAPI):
     await db_initializer.ensure_database()
     app.state.db_initializer = db_initializer
 
+    # Shared in-memory session store for realtime interactions
+    app.state.session_store = SessionStore()
+
     # Initialize OpenAI async client if library available and API key present
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if openai_api_key is None:
@@ -39,6 +44,7 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Failed to initialize OpenAI Async client") from exc
 
     app.state.openai_client = openai_client
+    app.state.openai_api_key = openai_api_key
 
     try:
         yield
@@ -96,8 +102,9 @@ def create_app() -> FastAPI:
     # `public` is already mounted at root above; no additional mounts required here.
 
     # Register application routers
+    app.include_router(session_router)
     app.include_router(image_router)
-    app.include_router(opnote_router)
+    app.include_router(realtime_ws_router)
 
     return app
 

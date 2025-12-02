@@ -1,6 +1,5 @@
 /* ApiClient
-Minimal helper for talking to the FastAPI backend. Handles image uploads,
-thumbnail retrieval, and operative note generation with friendly errors.
+Thin wrapper around backend endpoints for realtime sessions.
 */
 
 export class ApiClient {
@@ -8,20 +7,31 @@ export class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  async uploadImage(file, { textInput = null, audioFile = null } = {}) {
-    const formData = new FormData();
-    formData.append("file", file, file.name || "upload.jpg");
-    if (textInput) {
-      formData.append("text_input", textInput);
-    }
-    if (audioFile) {
-      formData.append("audio_file", audioFile, audioFile.name || "dictation.wav");
-    }
-    const response = await fetch(`${this.baseUrl}/images`, {
+  async startSession(autoGenerate = true) {
+    const response = await fetch(`${this.baseUrl}/sessions`, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_generate: autoGenerate }),
     });
-    return this.#handleJson(response, "Failed to classify image");
+    return this.#handleJson(response, "Unable to start session");
+  }
+
+  async closeSession(sessionId, baseNote = "", autoGenerate = null) {
+    const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/close`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base_note: baseNote, auto_generate: autoGenerate }),
+    });
+    return this.#handleJson(response, "Failed to close session");
+  }
+
+  async generateOpnote(sessionId, baseNote = "") {
+    const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/opnote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base_note: baseNote }),
+    });
+    return this.#handleJson(response, "Failed to generate operative note");
   }
 
   async fetchThumbnail(imageId) {
@@ -31,17 +41,6 @@ export class ApiClient {
     }
     const blob = await response.blob();
     return URL.createObjectURL(blob);
-  }
-
-  async generateOpnote(baseOpnote, imageIds) {
-    const response = await fetch(`${this.baseUrl}/opnotes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ base_opnote: baseOpnote, image_ids: imageIds }),
-    });
-    return this.#handleJson(response, "Failed to generate operative note");
   }
 
   async #handleJson(response, fallbackMessage) {
