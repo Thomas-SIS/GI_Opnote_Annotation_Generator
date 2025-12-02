@@ -62,3 +62,6 @@ instance/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# Project Database
+app.db
