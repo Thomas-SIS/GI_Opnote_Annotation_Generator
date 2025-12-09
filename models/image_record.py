@@ -14,6 +14,7 @@ class ImageRecord:
         image_description: Optional textual description.
         image_thumbnail: Optional thumbnail bytes.
         label: Optional anatomical label classified from the image.
+        created_at: Unix timestamp (seconds) when the row was inserted.
     """
 
     id: Optional[int]
@@ -21,3 +22,4 @@ class ImageRecord:
     image_description: Optional[str] = None
     image_thumbnail: Optional[bytes] = None
     label: Optional[str] = None
+    created_at: Optional[int] = None

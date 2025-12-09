@@ -7,6 +7,7 @@ Provides ImageDAL class with async CRUD operations compatible with
 from __future__ import annotations
 
 
+import time
 from typing import AsyncIterator, List, Optional
 
 import aiosqlite
@@ -36,11 +37,19 @@ class ImageDAL:
 			The integer primary key of the created row.
 		"""
 
+		created_at = record.created_at or int(time.time())
+
 		async with self._db.connection() as conn:
 			cur = await conn.execute(
-				"""INSERT INTO IMAGE (image_filename, image_description, image_thumbnail, label)
-				VALUES (?, ?, ?, ?)""",
-				(record.image_filename, record.image_description, record.image_thumbnail, record.label),
+				"""INSERT INTO IMAGE (image_filename, image_description, image_thumbnail, label, created_at)
+				VALUES (?, ?, ?, ?, ?)""",
+				(
+					record.image_filename,
+					record.image_description,
+					record.image_thumbnail,
+					record.label,
+					created_at,
+				),
 			)
 			await conn.commit()
 			return cur.lastrowid
@@ -50,7 +59,8 @@ class ImageDAL:
 
 		async with self._db.connection() as conn:
 			cur = await conn.execute(
-				"SELECT id, image_filename, image_description, image_thumbnail, label FROM IMAGE WHERE id = ?",
+				"""SELECT id, image_filename, image_description, image_thumbnail, label, created_at
+				FROM IMAGE WHERE id = ?""",
 				(image_id,),
 			)
 			row = await cur.fetchone()
@@ -62,6 +72,7 @@ class ImageDAL:
 				image_description=row[2],
 				image_thumbnail=row[3],
 				label=row[4],
+				created_at=row[5],
 			)
 
 	async def list_images(self, limit: int = 100, offset: int = 0) -> List[ImageRecord]:
@@ -74,12 +85,20 @@ class ImageDAL:
 
 		async with self._db.connection() as conn:
 			cur = await conn.execute(
-				"SELECT id, image_filename, image_description, image_thumbnail, label FROM IMAGE ORDER BY id DESC LIMIT ? OFFSET ?",
+				"""SELECT id, image_filename, image_description, image_thumbnail, label, created_at
+				FROM IMAGE ORDER BY id DESC LIMIT ? OFFSET ?""",
 				(limit, offset),
 			)
 			rows = await cur.fetchall()
 			return [
-				ImageRecord(id=r[0], image_filename=r[1], image_description=r[2], image_thumbnail=r[3], label=r[4])
+				ImageRecord(
+					id=r[0],
+					image_filename=r[1],
+					image_description=r[2],
+					image_thumbnail=r[3],
+					label=r[4],
+					created_at=r[5],
+				)
 				for r in rows
 			]
 

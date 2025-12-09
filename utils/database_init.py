@@ -1,5 +1,5 @@
-import os
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator, Optional
@@ -11,15 +11,9 @@ class AsyncDatabaseInitializer:
     """
     Manage an async SQLite database using the DATABASE_DIR environment variable.
 
-    - The database file is located at: <DATABASE_DIR>/app.db
-    - DATABASE_DIR is required. A RuntimeError is raised if it is missing
-      or invalid (not a directory and cannot be created).
-    - On the first call to `ensure_database()` for a given instance:
-        * Any existing database file at that path is deleted.
-        * A new database file is created.
-        * The IMAGE table is created (and the `label` column ensured).
-    - Subsequent calls to `ensure_database()` on the same instance are no-ops,
-      so it is safe for `connection()` to call it.
+    The database file is located at: <DATABASE_DIR>/app.db. On first use the
+    directory is created (if missing) and the schema for the IMAGE table is
+    ensured without deleting any existing data.
     """
 
     def __init__(self, parent_folder: Optional[Path | str] = None) -> None:
@@ -56,37 +50,24 @@ class AsyncDatabaseInitializer:
         self.db_dir = db_dir
         self.db_path = self.db_dir / "app.db"
 
-        # Internal flag to make the "wipe and recreate" behavior one-time per instance.
+        # Internal flag to ensure schema setup runs only once per instance.
         self._initialized = False
 
     async def ensure_database(self) -> None:
         """
-        Ensure a fresh SQLite database exists at `self.db_path`.
+        Ensure the SQLite database file and IMAGE schema exist at `self.db_path`.
 
-        On first call this will:
-            - Delete any existing database file at `self.db_path`.
-            - Create a new database file.
-            - Create the IMAGE table (and add `label` column if missing).
-
-        Subsequent calls on the same instance are no-ops.
+        On first call this will create the database file if missing, create the
+        IMAGE table, add any missing columns (`label`, `created_at`), and create
+        indexes. Subsequent calls on the same instance are no-ops.
         """
         if self._initialized:
             return
-
-        # Delete old DB if present so we always start clean on app startup.
-        if self.db_path.exists():
-            try:
-                self.db_path.unlink()
-            except Exception as exc:
-                raise RuntimeError(
-                    f"Failed to delete existing database at {self.db_path}"
-                ) from exc
 
         max_attempts = 3
         for attempt in range(1, max_attempts + 1):
             try:
                 async with aiosqlite.connect(self.db_path) as db:
-                    # Create table with label column present
                     await db.execute(
                         """
                         CREATE TABLE IF NOT EXISTS IMAGE (
@@ -94,18 +75,29 @@ class AsyncDatabaseInitializer:
                             image_filename TEXT NOT NULL,
                             image_description TEXT,
                             image_thumbnail BLOB,
-                            label TEXT
+                            label TEXT,
+                            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
                         )
                         """
                     )
 
-                    # For extra safety, ensure label column exists if the table
-                    # was already present with an older schema.
+                    # Ensure columns exist for older schemas.
                     cur = await db.execute("PRAGMA table_info(IMAGE)")
                     cols = await cur.fetchall()
                     col_names = {col[1] for col in cols}
                     if "label" not in col_names:
                         await db.execute("ALTER TABLE IMAGE ADD COLUMN label TEXT")
+                    if "created_at" not in col_names:
+                        await db.execute(
+                            "ALTER TABLE IMAGE ADD COLUMN created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))"
+                        )
+                        await db.execute(
+                            "UPDATE IMAGE SET created_at = strftime('%s','now') WHERE created_at IS NULL"
+                        )
+
+                    await db.execute(
+                        "CREATE INDEX IF NOT EXISTS idx_image_created_at ON IMAGE(created_at)"
+                    )
 
                     await db.commit()
                 break
@@ -125,7 +117,7 @@ class AsyncDatabaseInitializer:
         """
         Async context manager yielding an `aiosqlite.Connection`.
 
-        The database is created/reset on the first use via `ensure_database()`.
+        The database is created/verified on the first use via `ensure_database()`.
         """
         await self.ensure_database()
         conn = await aiosqlite.connect(self.db_path)
