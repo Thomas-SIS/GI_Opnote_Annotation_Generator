@@ -1,10 +1,10 @@
 """Operative note helper using the OpenAI Responses API.
 
-Given a set of image records and an optional partial opnote, this module
-helps produce a clear, clinician-friendly operative note in Markdown. The
-generator will use the image descriptions to fill in missing details where
-reasonable, but it's fine if the final note remains partially filled when
-information is insufficient.
+Given a set of image records and a user-provided operative note template,
+this module assembles a clear, clinician-friendly operative note in
+Markdown. The generator leans on the image descriptions and user
+documentation to fill in missing details while preserving the provided
+template structure.
 """
 
 import logging
@@ -12,37 +12,27 @@ import time
 from typing import List, Optional
 
 from openai import AsyncOpenAI
-from models.image_record import ImageRecord  # use models package path
+
+from models.image_record import ImageRecord
 
 
 class OperativeNoteGenerator:
-    """Create an operative note from images and an optional base note.
-
-    This class wraps the OpenAI Responses call and provides a single
-    coroutine `generate_opnote` that returns Markdown text suitable for
-    inclusion in a patient's chart. It leans on the image descriptions
-    to suggest findings and a short assessment, but never fabricates
-    clinical detail beyond reasonable inference.
-    """
-
-    # We don't force a template. Let the model construct or complete
-    # sections based on the inputs it receives.
+    """Create an operative note from images and a user template."""
 
     SYSTEM_PROMPT = (
         "You are an experienced GI endoscopist and skilled medical writer. "
-        "When provided with image descriptions and any partial opnote, do your best to produce a clear, structured operative note in Markdown."
+        "When provided with image details and a user template, produce a clear, "
+        "structured operative note in Markdown."
     )
 
     USER_INSTRUCTIONS = """You'll get two things:
-        1) A base opnote (may be empty or partial)
-        2) A list of images, each with an anatomical label and short description.
+        1) An operative note template from the user (may be empty or partial)
+        2) A list of images, each with generated label, description, reasoning, and any user-provided documentation.
 
         Please:
-        - Produce a readable operative note in Markdown.
-        - Preserve any content already present in the base opnote.
-        - Fill or extend sections when the images support reasonable inference; if not enough data exists, it's okay to leave parts incomplete.
-        - Under 'Images and Annotations' include a numbered list: image id, label, one-line description, and any clinically relevant finding.
-        - Keep the Findings and Assessment concise and grounded in the supplied data.
+        - Use the template as the base structure. Preserve existing content and headings.
+        - Keep Findings and Assessment concise and grounded in the supplied data.
+        - Under 'Images and Annotations' include the supplied image details.
         - Return only the Markdown note (no explanatory text).
         """
 
@@ -51,23 +41,18 @@ class OperativeNoteGenerator:
             raise ValueError("OpenAI AsyncOpenAI client is required.")
         self.client = client
 
-    # ----------------------------------------------------------------------
-    # PUBLIC API
-    # ----------------------------------------------------------------------
     async def generate_opnote(
         self,
         images: List[ImageRecord],
         base_opnote: Optional[str] = None,
         template: Optional[str] = None,
-        max_output_tokens: int = 2000,
     ) -> str:
-        """
-        Generate a completed operative note from image records.
+        """Generate a completed operative note from image records.
 
         Args:
             images: List of ImageRecord objects.
-            base_opnote: Optional markdown opnote template (may be incomplete).
-            template: Optional alternative template for the output format.
+            base_opnote: User-provided operative note text (used as the template).
+            template: Optional template override (defaults to base_opnote).
             max_output_tokens: LLM token limit.
 
         Returns:
@@ -75,33 +60,21 @@ class OperativeNoteGenerator:
         """
         start = time.time()
 
-        # Build brief Findings and Images sections to give the model useful context.
-        findings_md = []
-        images_md = []
+        template_text = (template if template is not None else base_opnote) or ""
+        template_text = template_text.strip()
 
-        for img in images:
-            id_ = img.id or "?"
-            label = img.label or img.image_filename or "Unknown"
-            desc = img.image_description or "No description available."
+        image_sections = [
+            self._format_image_block(index, image) for index, image in enumerate(images, start=1)
+        ]
+        image_details = "\n\n".join(image_sections) if image_sections else "No images provided."
 
-            findings_md.append(f"- Image {id_} ({label}): {desc}")
-            images_md.append(f"{id_}. **{label}** — {desc}")
-
-        findings_text = "\n".join(findings_md) or "No notable findings."
-        images_text = "\n".join(images_md) or "No images provided."
-
-        # Combine any provided base opnote with the autogenerated context
         context_parts = []
-        if base_opnote:
-            context_parts.append(base_opnote)
-
-        context_parts.append("## Autogenerated Findings and Images (for context)")
-        context_parts.append("\n## Findings\n\n" + findings_text)
-        context_parts.append("\n## Images and Annotations\n\n" + images_text)
+        if template_text:
+            context_parts.append("## User-Provided Operative Note Template\n" + template_text)
+        context_parts.append("## Image Details\n" + image_details)
 
         context_note = "\n\n".join(context_parts)
 
-        # Send the assembled context to the OpenAI Responses API
         try:
             response = await self.client.responses.create(
                 model="gpt-5",
@@ -122,13 +95,11 @@ class OperativeNoteGenerator:
                         "content": [{"type": "input_text", "text": context_note}],
                     },
                 ],
-                max_output_tokens=max_output_tokens,
             )
-        except Exception as e:
-            logging.error(f"OpenAI Responses API error: {e}")
+        except Exception as exc:
+            logging.error(f"OpenAI Responses API error: {exc}")
             raise
 
-        # Extract the model's Markdown output from the response
         md_output = self._extract_markdown(response)
 
         latency = time.time() - start
@@ -136,26 +107,35 @@ class OperativeNoteGenerator:
 
         return md_output
 
-    # ----------------------------------------------------------------------
-    # INTERNAL HELPERS
-    # ----------------------------------------------------------------------
     @staticmethod
     def _extract_markdown(response) -> str:
-        """Pull the markdown text out of a Responses API result.
-
-        The Responses API returns a list of output items; this helper locates
-        the first text output and returns it. If parsing fails, it falls back
-        to any `response.output_text` attribute, or the stringified response.
-        """
+        """Pull the markdown text out of a Responses API result."""
         try:
             for item in response.output:
                 if getattr(item, "type", None) != "message":
                     continue
-                for c in getattr(item, "content", []):
-                    if c.get("type") == "output_text":
-                        return c.get("text")
-        except Exception as e:
-            logging.error(f"Error parsing response output: {e}")
+                for content in getattr(item, "content", []):
+                    if content.get("type") == "output_text":
+                        return content.get("text")
+        except Exception as exc:
+            logging.error(f"Error parsing response output: {exc}")
 
-        # Fallback
         return getattr(response, "output_text", None) or str(response)
+
+    @staticmethod
+    def _format_image_block(index: int, image: ImageRecord) -> str:
+        """Format a single image entry for the model context."""
+        label = image.label or "Not provided"
+        description = image.image_description or "Not provided"
+        reasoning = image.reasoning or "Not provided"
+        documentation = image.user_documentation or "Not provided"
+        image_id = f" (ID {image.id})" if image.id is not None else ""
+
+        lines = [
+            f"Image {index}{image_id}",
+            f"Generated Label: {label}",
+            f"Generated Description: {description}",
+            f"Generated Reasoning: {reasoning}",
+            f"User Provided Documentation: {documentation}",
+        ]
+        return "\n".join(lines)

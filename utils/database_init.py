@@ -76,6 +76,8 @@ class AsyncDatabaseInitializer:
                             image_description TEXT,
                             image_thumbnail BLOB,
                             label TEXT,
+                            reasoning TEXT,
+                            user_documentation TEXT,
                             created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
                         )
                         """
@@ -87,6 +89,10 @@ class AsyncDatabaseInitializer:
                     col_names = {col[1] for col in cols}
                     if "label" not in col_names:
                         await db.execute("ALTER TABLE IMAGE ADD COLUMN label TEXT")
+                    if "reasoning" not in col_names:
+                        await db.execute("ALTER TABLE IMAGE ADD COLUMN reasoning TEXT")
+                    if "user_documentation" not in col_names:
+                        await db.execute("ALTER TABLE IMAGE ADD COLUMN user_documentation TEXT")
                     if "created_at" not in col_names:
                         await db.execute(
                             "ALTER TABLE IMAGE ADD COLUMN created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))"
