@@ -13,6 +13,7 @@ Usage example:
 
 from __future__ import annotations
 
+import os
 import asyncio
 from pathlib import Path
 from typing import AsyncIterator
@@ -36,6 +37,18 @@ class AsyncDatabaseInitializer:
 	def __init__(self, parent_folder: Path | str) -> None:
 		self.parent = Path(parent_folder)
 		self.db_dir = self.parent / "database"
+		self.db_path = self.db_dir / "app.db"
+		# Allow overriding the database directory with the DATABASE_DIR env var.
+		# If set, DATABASE_DIR should be a folder path where the DB file will live.
+		env_dir = os.getenv("DATABASE_DIR")
+		if env_dir:
+			self.db_dir = Path(env_dir)
+		else:
+			if parent_folder is None:
+				parent_folder = Path(__file__).resolve().parent
+			self.parent = Path(parent_folder)
+			self.db_dir = self.parent / "database"
+
 		self.db_path = self.db_dir / "app.db"
 
 	async def ensure_database(self) -> None:

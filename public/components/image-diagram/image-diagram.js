@@ -132,8 +132,27 @@ export class ImageDiagram {
       callouts[side].push({ y: percentY, data: markerData, color });
     });
 
-    // after markers are added, update their pixel positions
-    this.#updateMarkerPositions();
+    // after markers are added, request overlay sizing first so we have
+    // correct overlay dimensions before computing pixel positions.
+    // Prefer the existing sizing flow if wired, otherwise wait for
+    // the image `load` event as a fallback.
+    if (this._boundOverlayUpdate) {
+      this._boundOverlayUpdate();
+    } else if (this.imageEl) {
+      const once = () => {
+        try {
+          this.#updateMarkerPositions();
+        } catch (e) {
+          // ignore
+        }
+        this.imageEl.removeEventListener("load", once);
+      };
+      this.imageEl.addEventListener("load", once);
+    } else {
+      // last-resort: attempt to update immediately
+      this.#updateMarkerPositions();
+    }
+
     this.#renderCallouts(callouts);
   }
 
@@ -187,6 +206,8 @@ export class ImageDiagram {
       this._diagramResizeObserver = new ResizeObserver(this._boundOverlayUpdate);
       this._diagramResizeObserver.observe(this.imageEl);
       this._diagramResizeObserver.observe(stageEl);
+      // also observe overlay element size changes
+      if (this.overlayEl) this._diagramResizeObserver.observe(this.overlayEl);
     }
 
     // update on window resize
@@ -197,6 +218,11 @@ export class ImageDiagram {
     if (!this.overlayEl) return;
     const overlayWidth = this.overlayEl.offsetWidth || 0;
     const overlayHeight = this.overlayEl.offsetHeight || 0;
+    // If overlay hasn't been sized yet, try again on next frame.
+    if (overlayWidth < 8 || overlayHeight < 8) {
+      window.requestAnimationFrame(() => this.#updateMarkerPositions());
+      return;
+    }
     const markers = Array.from(this.overlayEl.querySelectorAll('.marker'));
     markers.forEach((marker) => {
       const percentLeft = parseFloat(marker.dataset.percentLeft || '50');
