@@ -64,3 +64,5 @@ jobs:
           app-name: 'gi-opnote-generator-app'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_8D69F9B6810B42AC83BEC8CB23CA258D }}
+          startup-command: >
+            sh -c 'n=$(nproc 2>/dev/null || echo 1); w=$(( n*2 + 1 )); if [ "$w" -lt 2 ]; then w=2; fi; exec gunicorn -k uvicorn.workers.UvicornWorker -w $w -b 0.0.0.0:8000 main:app'
