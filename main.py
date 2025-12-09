@@ -12,10 +12,6 @@ from routes.image_route import router as image_router
 from routes.opnote_route import router as opnote_router
 from utils.database_init import AsyncDatabaseInitializer
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
 
