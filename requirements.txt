@@ -5,3 +5,5 @@ uvicorn
 gunicorn
 aiosqlite
 Jinja2
+aiofiles
+python-multipart
