@@ -46,6 +46,10 @@ class AsyncDatabaseInitializer:
 		# make sure directory exists
 		self.db_dir.mkdir(parents=True, exist_ok=True)
 
+		# delete old DB file on startup for fresh start
+		if self.db_path.exists():
+			self.db_path.unlink()
+
 		# open connection and create table if not exists
 		async with aiosqlite.connect(self.db_path) as db:
 			await db.execute(
