@@ -3,10 +3,10 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from openai import AsyncOpenAI
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from openai import AsyncOpenAI
 
 from routes.image_route import router as image_router
 from routes.opnote_route import router as opnote_router
@@ -15,78 +15,73 @@ from utils.database_init import AsyncDatabaseInitializer
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
 
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file if present
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan manager to initialize DB and OpenAI async client.
-
-    Attaches `db_initializer` and `openai_client` to `app.state`.
     """
-
+    Lifespan manager to initialize:
+      - the SQLite database (always new on startup, at DATABASE_DIR/app.db)
+      - the OpenAI async client
+    and attach them to `app.state`.
+    """
     # Initialize DB using DATABASE_DIR only.
     db_initializer = AsyncDatabaseInitializer()
-
-    # Log chosen DB directory and path for diagnostics
-    try:
-        print(f"Using DATABASE_DIR: {db_initializer.db_dir}")
-        print(f"Using database file: {db_initializer.db_path}")
-    except Exception:
-        print("Database path logging unavailable during startup.")
 
     # This will delete any existing DB at db_path and create a fresh one.
     await db_initializer.ensure_database()
     app.state.db_initializer = db_initializer
 
-    # Initialize OpenAI async client if library available and API key present
+    # Initialize OpenAI async client
     openai_api_key = os.getenv("OPENAI_API_KEY")
-    if openai_api_key is None:
+    if not openai_api_key:
         raise RuntimeError("OPENAI_API_KEY environment variable is not set")
-    else:
-        try:
-            openai_client = AsyncOpenAI()
-        except Exception as exc:
-            raise RuntimeError("Failed to initialize OpenAI Async client") from exc
+
+    try:
+        openai_client = AsyncOpenAI()
+    except Exception as exc:
+        raise RuntimeError("Failed to initialize OpenAI Async client") from exc
 
     app.state.openai_client = openai_client
 
     try:
         yield
     finally:
-        # Close OpenAI client if it has an async or sync close method
+        # Gracefully close the OpenAI client if it exposes a close/aclose method.
         client = getattr(app.state, "openai_client", None)
         if client is not None:
             aclose = getattr(client, "aclose", None) or getattr(client, "close", None)
             if aclose is not None:
                 try:
-                    # If the close method itself is an async function
                     if inspect.iscoroutinefunction(aclose):
                         await aclose()
                     else:
-                        # It might be sync but still return an awaitable
                         result = aclose()
                         if inspect.isawaitable(result):
                             await result
                 except Exception:
-                    # Swallow exceptions on shutdown to avoid masking more important errors
+                    # Ignore shutdown errors to avoid masking more important issues.
                     pass
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application instance.
-
-    Returns:
-        Configured FastAPI instance with lifespan-managed DB and OpenAI clients.
     """
-
+    Create and configure the FastAPI application instance.
+    """
     app = FastAPI(lifespan=lifespan)
 
-    # Serve static assets under /public and root index.html
+    # Serve static assets from the public directory, if it exists.
     if PUBLIC_DIR.exists():
         app.mount("/public", StaticFiles(directory=PUBLIC_DIR), name="public")
 
     @app.get("/", include_in_schema=False)
     async def serve_index():
-        """Serve the frontend index page from the public directory."""
+        """
+        Serve the frontend index page from the public directory.
+        """
         index_path = PUBLIC_DIR / "index.html"
         if not index_path.exists():
             raise HTTPException(status_code=404, detail="Frontend not found")
@@ -94,7 +89,9 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health(request: Request):
-        """Simple health check that verifies DB initializer and OpenAI client presence."""
+        """
+        Simple health check that verifies DB initializer and OpenAI client presence.
+        """
         has_db = hasattr(request.app.state, "db_initializer")
         has_openai = (
             hasattr(request.app.state, "openai_client")
