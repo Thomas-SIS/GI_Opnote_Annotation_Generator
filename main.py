@@ -14,6 +14,9 @@ from utils.database_init import AsyncDatabaseInitializer
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
 
+from dotenv import load_dotenv
+load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
