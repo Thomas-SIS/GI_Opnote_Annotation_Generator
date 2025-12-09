@@ -9,9 +9,6 @@ def to_image_data_url(image_bytes: bytes) -> str:
         b64_str = image_bytes.decode("utf-8")
     except Exception as exc:
         raise ValueError("Image bytes must be base64-encoded UTF-8.") from exc
-    # Debug: indicate that an image was provided and converted
-    if b64_str:
-        print("image added")
     return f"data:image/jpeg;base64,{b64_str}"
 
 
@@ -21,8 +18,6 @@ def build_user_content(
     """Compose user messages so each modality is a distinct input entry."""
     messages: List[Dict[str, Any]] = []
     if text_input:
-        # Debug: indicate that text input was provided
-        print("Text added")
         messages.append(
             {"type": "message", "role": "user", "content": [{"type": "input_text", "text": text_input}]}
         )
