@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import os
 from contextlib import asynccontextmanager
@@ -10,6 +11,7 @@ from openai import AsyncOpenAI
 
 from routes.image_route import router as image_router
 from routes.opnote_route import router as opnote_router
+from utils.database_cleaner import DatabaseCleaner
 from utils.database_init import AsyncDatabaseInitializer
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -24,16 +26,22 @@ load_dotenv()  # Load environment variables from .env file if present
 async def lifespan(app: FastAPI):
     """
     Lifespan manager to initialize:
-      - the SQLite database (always new on startup, at DATABASE_DIR/app.db)
+      - the SQLite database schema at DATABASE_DIR/app.db
+      - periodic cleanup of stale IMAGE rows
       - the OpenAI async client
-    and attach them to `app.state`.
+    Resources are attached to `app.state`.
     """
     # Initialize DB using DATABASE_DIR only.
     db_initializer = AsyncDatabaseInitializer()
 
-    # This will delete any existing DB at db_path and create a fresh one.
     await db_initializer.ensure_database()
     app.state.db_initializer = db_initializer
+
+    # Kick off cleanup and a background task to keep entries fresh.
+    cleaner = DatabaseCleaner(db_initializer)
+    await cleaner.prune_expired_images()
+    db_cleanup_task = asyncio.create_task(cleaner.run_periodic_cleanup())
+    app.state.db_cleanup_task = db_cleanup_task
 
     # Initialize OpenAI async client
     openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -50,6 +58,14 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        cleanup_task = getattr(app.state, "db_cleanup_task", None)
+        if cleanup_task is not None:
+            cleanup_task.cancel()
+            try:
+                await cleanup_task
+            except asyncio.CancelledError:
+                pass
+
         # Gracefully close the OpenAI client if it exposes a close/aclose method.
         client = getattr(app.state, "openai_client", None)
         if client is not None:

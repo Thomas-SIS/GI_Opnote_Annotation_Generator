@@ -36,11 +36,20 @@ export class ImageDiagram {
     this.mapping = null;
     this.displayNameIndex = {};
     this.activeIndex = 0;
+
+    // Layout + rendering state
+    this._layoutReady = false;        // overlay has a real size
+    this._hasRenderedOnce = false;    // markers/callouts have been rendered at least once
+    this._pendingRender = false;      // mapping/images changed before layout was ready
+
+    this._diagramResizeObserver = null;
+    this._boundOverlayUpdate = null;
   }
 
   async init() {
     const template = await loadTemplate("./image-diagram.html", import.meta.url);
     this.container.innerHTML = template;
+
     this.overlayEl = this.container.querySelector("[data-role='overlay']");
     this.imageEl = this.container.querySelector(".diagram__image");
     this.legendEl = this.container.querySelector("[data-role='legend']");
@@ -54,9 +63,12 @@ export class ImageDiagram {
     this.lightboxFilename = this.container.querySelector("[data-role='lightbox-filename']");
     this.lightboxReasoning = this.container.querySelector("[data-role='lightbox-reasoning']");
     this.lightboxDescription = this.container.querySelector("[data-role='lightbox-description']");
+
     this.#wireLightbox();
     this.#wireImageSizing();
   }
+
+  // --- Public API ----------------------------------------------------------
 
   setMapping(mapping) {
     this.mapping = mapping;
@@ -64,6 +76,7 @@ export class ImageDiagram {
       acc[value.display_name.toLowerCase()] = key;
       return acc;
     }, {});
+
     this.#renderLegend();
     this.render();
   }
@@ -75,24 +88,49 @@ export class ImageDiagram {
 
   render() {
     if (!this.overlayEl) return;
+
+    // Always clear overlay and rails so state doesn't accumulate
     this.overlayEl.innerHTML = "";
     if (this.leftRail) this.leftRail.innerHTML = "";
     if (this.rightRail) this.rightRail.innerHTML = "";
+
+    // 1) Mapping missing → we can't do much yet
     if (!this.mapping) {
-      this.emptyEl.innerHTML = `<div class="placeholder">Loading diagram mapping...</div>`;
+      if (this.emptyEl) {
+        this.emptyEl.innerHTML = `<div class="placeholder">Loading diagram mapping...</div>`;
+      }
       return;
     }
 
+    // 2) Layout not ready → don't create markers yet to avoid stacking
+    if (!this._layoutReady) {
+      this._pendingRender = true;
+      if (this.emptyEl) {
+        this.emptyEl.innerHTML = `<div class="placeholder">Preparing diagram layout...</div>`;
+      }
+      return;
+    }
+
+    // At this point, mapping exists + overlay has a real size.
+    // Mark that we are about to render for real.
+    if (this.emptyEl) this.emptyEl.innerHTML = "";
+
+    // 3) No images yet → show placeholder markers + guidance text
     if (!this.images.length) {
       this.#renderPlaceholderDots();
-      this.emptyEl.innerHTML =
-        "<div class='placeholder'>No processed images yet. Hover the color-coded sites to preview labels.</div>";
+      if (this.emptyEl) {
+        this.emptyEl.innerHTML =
+          "<div class='placeholder'>No processed images yet. Hover the color-coded sites to preview labels.</div>";
+      }
+      this._hasRenderedOnce = true;
+      this.#updateMarkerPositions();
       return;
     }
 
-    this.emptyEl.innerHTML = "";
+    // 4) Have images → build markers + callouts
     const markers = this.#buildMarkers();
     const callouts = { left: [], right: [] };
+
     markers.forEach((markerData) => {
       const coords = markerData.coords;
       const color = coords ? GROUP_COLORS[markerData.group] || "#22d3ee" : "#22d3ee";
@@ -102,11 +140,11 @@ export class ImageDiagram {
       marker.dataset.labelKey = markerData.key;
       marker.addEventListener("click", () => this.#openFirstImage(markerData));
 
-      // Position marker using percent coords but relative to the overlay/image
+      // Percent coordinates (0–100) relative to overlay
       const percentX = coords ? coords.x * 100 : 50;
       const percentY = coords ? coords.y * 100 : 50;
-      marker.dataset.percentLeft = percentX;
-      marker.dataset.percentTop = percentY;
+      marker.dataset.percentLeft = String(percentX);
+      marker.dataset.percentTop = String(percentY);
 
       const dot = document.createElement("div");
       dot.className = "marker__dot";
@@ -132,34 +170,49 @@ export class ImageDiagram {
       callouts[side].push({ y: percentY, data: markerData, color });
     });
 
-    // after markers are added, request overlay sizing first so we have
-    // correct overlay dimensions before computing pixel positions.
-    // Prefer the existing sizing flow if wired, otherwise wait for
-    // the image `load` event as a fallback.
-    if (this._boundOverlayUpdate) {
-      this._boundOverlayUpdate();
-    } else if (this.imageEl) {
-      const once = () => {
-        try {
-          this.#updateMarkerPositions();
-        } catch (e) {
-          // ignore
-        }
-        this.imageEl.removeEventListener("load", once);
-      };
-      this.imageEl.addEventListener("load", once);
-    } else {
-      // last-resort: attempt to update immediately
-      this.#updateMarkerPositions();
-    }
-
     this.#renderCallouts(callouts);
+
+    this._hasRenderedOnce = true;
+    this.#updateMarkerPositions();
   }
+
+  openLightbox(imageId) {
+    const idx = this.images.findIndex((img) => img.remoteId === imageId);
+    if (idx === -1) return;
+    this.activeIndex = idx;
+    this.#renderLightbox();
+    this.lightboxEl?.classList.add("lightbox--active");
+  }
+
+  closeLightbox() {
+    this.lightboxEl?.classList.remove("lightbox--active");
+  }
+
+  destroy() {
+    if (this._diagramResizeObserver) {
+      try {
+        this._diagramResizeObserver.disconnect();
+      } catch {
+        // ignore
+      }
+      this._diagramResizeObserver = null;
+    }
+    if (this.imageEl && this._boundOverlayUpdate) {
+      this.imageEl.removeEventListener("load", this._boundOverlayUpdate);
+    }
+    if (this._boundOverlayUpdate) {
+      window.removeEventListener("resize", this._boundOverlayUpdate);
+    }
+    this._boundOverlayUpdate = null;
+  }
+
+  // --- Layout + sizing -----------------------------------------------------
 
   #wireImageSizing() {
     if (!this.imageEl || !this.overlayEl) return;
 
     const stageEl = this.container.querySelector(".diagram__stage");
+    if (!stageEl) return;
 
     const updateOverlay = () => {
       const stageWidth = stageEl.clientWidth;
@@ -169,11 +222,15 @@ export class ImageDiagram {
       let overlayWidth = stageWidth;
       let overlayHeight = stageHeight;
       const stageRatio = stageWidth / stageHeight;
+
+      // Maintain target aspect ratio inside the stage
       if (Math.abs(stageRatio - DEFAULT_ASPECT_RATIO) > 0.001) {
         if (stageRatio > DEFAULT_ASPECT_RATIO) {
+          // stage too wide → letterbox left/right
           overlayHeight = stageHeight;
           overlayWidth = stageHeight * DEFAULT_ASPECT_RATIO;
         } else {
+          // stage too tall → letterbox top/bottom
           overlayWidth = stageWidth;
           overlayHeight = stageWidth / DEFAULT_ASPECT_RATIO;
         }
@@ -187,55 +244,71 @@ export class ImageDiagram {
       this.overlayEl.style.width = `${overlayWidth}px`;
       this.overlayEl.style.height = `${overlayHeight}px`;
 
-      this.#updateMarkerPositions();
+      const hasValidSize = overlayWidth >= 8 && overlayHeight >= 8;
+      const becameReady = hasValidSize && !this._layoutReady;
+      this._layoutReady = hasValidSize;
+
+      if (becameReady) {
+        // First time we have a real layout → if something asked to render earlier, do it now.
+        if (this._pendingRender && this.mapping) {
+          this._pendingRender = false;
+          this.render();
+          return;
+        }
+      }
+
+      // On subsequent resizes, just reposition existing markers
+      if (this._hasRenderedOnce) {
+        this.#updateMarkerPositions();
+      }
     };
 
     this._boundOverlayUpdate = () => {
       window.requestAnimationFrame(updateOverlay);
     };
 
-    // Call update after layout stabilizes: RAF + small timeout
+    // Initial layout pass
     this._boundOverlayUpdate();
-    setTimeout(updateOverlay, 50);
 
-    // Ensure update after native image load
+    // After image load, layout may change (intrinsic size)
     this.imageEl.addEventListener("load", this._boundOverlayUpdate);
 
-    // Observe size changes on the image and stage for robust updates
+    // Observe stage + image for responsive layout changes
     if (typeof ResizeObserver !== "undefined") {
       this._diagramResizeObserver = new ResizeObserver(this._boundOverlayUpdate);
-      this._diagramResizeObserver.observe(this.imageEl);
       this._diagramResizeObserver.observe(stageEl);
-      // also observe overlay element size changes
-      if (this.overlayEl) this._diagramResizeObserver.observe(this.overlayEl);
+      this._diagramResizeObserver.observe(this.imageEl);
     }
 
-    // update on window resize
+    // Window resize
     window.addEventListener("resize", this._boundOverlayUpdate);
   }
 
   #updateMarkerPositions() {
     if (!this.overlayEl) return;
+
     const overlayWidth = this.overlayEl.offsetWidth || 0;
     const overlayHeight = this.overlayEl.offsetHeight || 0;
-    // If overlay hasn't been sized yet, try again on next frame.
+
     if (overlayWidth < 8 || overlayHeight < 8) {
-      window.requestAnimationFrame(() => this.#updateMarkerPositions());
+      // Layout not ready; let #wireImageSizing handle rendering once it is.
       return;
     }
-    const markers = Array.from(this.overlayEl.querySelectorAll('.marker'));
+
+    const markers = Array.from(this.overlayEl.querySelectorAll(".marker"));
     markers.forEach((marker) => {
-      const percentLeft = parseFloat(marker.dataset.percentLeft || '50');
-      const percentTop = parseFloat(marker.dataset.percentTop || '50');
+      const percentLeft = parseFloat(marker.dataset.percentLeft || "50");
+      const percentTop = parseFloat(marker.dataset.percentTop || "50");
 
       const x = (percentLeft / 100) * overlayWidth;
       const y = (percentTop / 100) * overlayHeight;
 
-      // place marker with transform to center
       marker.style.left = `${x}px`;
       marker.style.top = `${y}px`;
     });
   }
+
+  // --- Marker & callout building ------------------------------------------
 
   #calloutSide(coords) {
     if (!coords || typeof coords.x !== "number") return "right";
@@ -247,6 +320,7 @@ export class ImageDiagram {
     sides.forEach((side) => {
       const rail = side === "left" ? this.leftRail : this.rightRail;
       if (!rail) return;
+
       rail.innerHTML = "";
       callouts[side]
         .sort((a, b) => a.y - b.y)
@@ -270,7 +344,8 @@ export class ImageDiagram {
 
           const count = document.createElement("p");
           count.className = "callout__count";
-          count.textContent = data.items.length === 1 ? "1 image" : `${data.items.length} images`;
+          count.textContent =
+            data.items.length === 1 ? "1 image" : `${data.items.length} images`;
 
           text.appendChild(label);
           text.appendChild(count);
@@ -297,36 +372,9 @@ export class ImageDiagram {
     });
   }
 
-  openLightbox(imageId) {
-    const idx = this.images.findIndex((img) => img.remoteId === imageId);
-    if (idx === -1) return;
-    this.activeIndex = idx;
-    this.#renderLightbox();
-    this.lightboxEl.classList.add("lightbox--active");
-  }
-
-  #openFirstImage(markerData) {
-    const first = markerData.items?.[0];
-    if (!first) return;
-    this.openLightbox(first.remoteId);
-  }
-
-  #renderLegend() {
-    if (!this.legendEl) return;
-    const groups = new Set(Object.values(this.mapping || {}).map((m) => m.group));
-    this.legendEl.innerHTML = [...groups]
-      .map(
-        (group) => `
-        <span class="legend__item">
-          <span class="legend__swatch" style="background:${GROUP_COLORS[group] || "#22d3ee"}"></span>
-          ${group.replace("_", " ")}
-        </span>
-      `
-      )
-      .join("");
-  }
-
   #renderPlaceholderDots() {
+    if (!this.mapping || !this.overlayEl) return;
+
     Object.entries(this.mapping).forEach(([key, coords]) => {
       const dot = document.createElement("div");
       dot.className = "marker";
@@ -357,6 +405,7 @@ export class ImageDiagram {
 
   #buildMarkers() {
     const buckets = new Map();
+
     this.images.forEach((img) => {
       const normalized = this.#normalizeLabel(img.label);
       const key = normalized.key;
@@ -365,6 +414,7 @@ export class ImageDiagram {
       }
       buckets.get(key).items.push(img);
     });
+
     return Array.from(buckets.values());
   }
 
@@ -372,6 +422,7 @@ export class ImageDiagram {
     const cleaned = (label || "").trim();
     const lower = cleaned.toLowerCase();
     const matched = this.#matchMappingByLabel(lower);
+
     if (matched) {
       const [key, coords] = matched;
       return {
@@ -402,44 +453,60 @@ export class ImageDiagram {
   #matchMappingByLabel(lowerLabel) {
     if (!this.mapping) return null;
 
+    // Alias table
     const aliasKey = LABEL_ALIASES[lowerLabel];
     if (aliasKey && this.mapping[aliasKey]) {
       return [aliasKey, this.mapping[aliasKey]];
     }
 
+    // Direct key match
     if (this.mapping[lowerLabel]) {
       return [lowerLabel, this.mapping[lowerLabel]];
     }
 
+    // Match by display_name
     const displayKey = this.displayNameIndex[lowerLabel];
     if (displayKey && this.mapping[displayKey]) {
       return [displayKey, this.mapping[displayKey]];
     }
 
+    // Slugified version
     const slug = lowerLabel.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
     if (slug && this.mapping[slug]) {
       return [slug, this.mapping[slug]];
     }
+
     return null;
   }
 
+  // --- Lightbox ------------------------------------------------------------
+
   #wireLightbox() {
     if (!this.lightboxEl) return;
+
     this.lightboxEl.addEventListener("click", (event) => {
       if (event.target === this.lightboxEl) {
         this.closeLightbox();
       }
     });
 
-    this.lightboxEl
-      .querySelector("[data-role='lightbox-close']")
-      .addEventListener("click", () => this.closeLightbox());
+    const closeBtn = this.lightboxEl.querySelector("[data-role='lightbox-close']");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => this.closeLightbox());
+    }
+
     this.lightboxEl.querySelectorAll(".lightbox__nav").forEach((btn) => {
       btn.addEventListener("click", () => {
         const dir = btn.getAttribute("data-dir");
         this.#stepLightbox(dir === "next" ? 1 : -1);
       });
     });
+  }
+
+  #openFirstImage(markerData) {
+    const first = markerData.items?.[0];
+    if (!first) return;
+    this.openLightbox(first.remoteId);
   }
 
   #stepLightbox(delta) {
@@ -451,8 +518,10 @@ export class ImageDiagram {
   #renderLightbox() {
     const current = this.images[this.activeIndex];
     if (!current) return;
+
     this.lightboxImg.src = current.originalUrl;
     this.lightboxCaption.textContent = `ID ${current.remoteId} | ${current.name}`;
+
     if (this.lightboxLabel) {
       this.lightboxLabel.textContent = current.label || "Unlabeled";
     }
@@ -468,25 +537,18 @@ export class ImageDiagram {
     }
   }
 
-  closeLightbox() {
-    this.lightboxEl?.classList.remove("lightbox--active");
-  }
-
-  destroy() {
-    if (this._diagramResizeObserver) {
-      try {
-        this._diagramResizeObserver.disconnect();
-      } catch (e) {
-        // ignore
-      }
-      this._diagramResizeObserver = null;
-    }
-    if (this.imageEl && this._boundOverlayUpdate) {
-      this.imageEl.removeEventListener("load", this._boundOverlayUpdate);
-    }
-    if (this._boundOverlayUpdate) {
-      window.removeEventListener("resize", this._boundOverlayUpdate);
-    }
-    this._boundOverlayUpdate = null;
+  #renderLegend() {
+    if (!this.legendEl) return;
+    const groups = new Set(Object.values(this.mapping || {}).map((m) => m.group));
+    this.legendEl.innerHTML = [...groups]
+      .map(
+        (group) => `
+        <span class="legend__item">
+          <span class="legend__swatch" style="background:${GROUP_COLORS[group] || "#22d3ee"}"></span>
+          ${group.replace("_", " ")}
+        </span>
+      `
+      )
+      .join("");
   }
 }
