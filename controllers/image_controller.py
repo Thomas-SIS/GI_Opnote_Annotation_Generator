@@ -121,10 +121,29 @@ async def get_thumbnail(request: Request, image_id: int) -> Response:
 
     record = await image_dal.get_image_by_id(int(image_id))
     if record is None:
+        # Diagnostic logging
+        try:
+            db_path = getattr(db_initializer, "db_path", None)
+        except Exception:
+            db_path = None
+        print(f"GET /images/{image_id}/thumbnail: record not found (db_path={db_path})")
         raise HTTPException(status_code=404, detail="Image not found")
 
     if not record.image_thumbnail:
+        # Diagnostic logging
+        try:
+            db_path = getattr(db_initializer, "db_path", None)
+        except Exception:
+            db_path = None
+        print(f"GET /images/{image_id}/thumbnail: thumbnail missing (db_path={db_path})")
         raise HTTPException(status_code=404, detail="Thumbnail not available for this image")
+
+    # Diagnostic logging: print size of stored thumbnail
+    try:
+        size = len(record.image_thumbnail) if record.image_thumbnail else 0
+    except Exception:
+        size = -1
+    print(f"GET /images/{image_id}/thumbnail: returning {size} bytes")
 
     # Stored thumbnails are raw PNG bytes; return them directly
     return Response(content=record.image_thumbnail, media_type="image/png")
