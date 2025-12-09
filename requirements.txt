@@ -5,3 +5,6 @@ uvicorn
 gunicorn
 aiosqlite
 Jinja2
+python-dotenv
+python-multipart
+aiosfiles
