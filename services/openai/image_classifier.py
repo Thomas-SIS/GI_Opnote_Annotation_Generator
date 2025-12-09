@@ -49,6 +49,7 @@ class ImageClassifier:
         response = await self._create_response(inputs)
         result = self._parse_response(response)
         result["latency"] = time.time() - start_time
+        result["audio_transcript"] = audio_transcript
         result.update(extract_usage(response))
         return result
 

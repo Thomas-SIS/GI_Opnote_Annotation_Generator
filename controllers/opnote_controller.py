@@ -38,6 +38,8 @@ async def generate_opnote(request: Request, base_opnote: str, image_ids: List[in
         images.append(rec)
 
     generator = OperativeNoteGenerator(openai_client)
-    opnote_md = await generator.generate_opnote(images=images, base_opnote=base_opnote)
+    opnote_md = await generator.generate_opnote(
+        images=images, base_opnote=base_opnote, template=base_opnote
+    )
 
     return {"operative_note": opnote_md}

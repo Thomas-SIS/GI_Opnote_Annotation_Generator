@@ -57,6 +57,7 @@ async def upload_image(
     label = classification.get("label")
     reasoning = classification.get("reasoning")
     image_description = classification.get("image_description")
+    audio_transcript = classification.get("audio_transcript")
     input_tokens_raw = classification.get("input_tokens")
     output_tokens_raw = classification.get("output_tokens")
     input_tokens = int(input_tokens_raw) if input_tokens_raw is not None else 0
@@ -67,12 +68,21 @@ async def upload_image(
     thumbnail_b64 = thumb_gen.create_thumbnail_from_base64(b64_input)
 
     # Persist record
+    user_doc_parts = []
+    if cleaned_text:
+        user_doc_parts.append(cleaned_text)
+    if audio_transcript:
+        user_doc_parts.append(audio_transcript)
+    user_documentation = "\n".join(user_doc_parts) if user_doc_parts else None
+
     record = ImageRecord(
         id=None,
         image_filename=file.filename or "uploaded_image",
         image_description=image_description,
         image_thumbnail=base64.b64decode(thumbnail_b64),
         label=label,
+        reasoning=reasoning,
+        user_documentation=user_documentation,
     )
     image_id = await image_dal.create_image(record)
 
