@@ -2,20 +2,22 @@ import inspect
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from openai import AsyncOpenAI
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
 from routes.image_route import router as image_router
 from routes.opnote_route import router as opnote_router
-
 from utils.database_init import AsyncDatabaseInitializer
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
-
-from dotenv import load_dotenv
-load_dotenv()
 
 
 @asynccontextmanager
@@ -24,10 +26,18 @@ async def lifespan(app: FastAPI):
 
     Attaches `db_initializer` and `openai_client` to `app.state`.
     """
-    project_root = Path(__file__).resolve().parent
 
-    # Initialize DB
-    db_initializer = AsyncDatabaseInitializer(project_root)
+    # Initialize DB using DATABASE_DIR only.
+    db_initializer = AsyncDatabaseInitializer()
+
+    # Log chosen DB directory and path for diagnostics
+    try:
+        print(f"Using DATABASE_DIR: {db_initializer.db_dir}")
+        print(f"Using database file: {db_initializer.db_path}")
+    except Exception:
+        print("Database path logging unavailable during startup.")
+
+    # This will delete any existing DB at db_path and create a fresh one.
     await db_initializer.ensure_database()
     app.state.db_initializer = db_initializer
 
@@ -61,12 +71,12 @@ async def lifespan(app: FastAPI):
                         if inspect.isawaitable(result):
                             await result
                 except Exception:
-                    # Swallow errors on shutdown to avoid crashing the server
+                    # Swallow exceptions on shutdown to avoid masking more important errors
                     pass
 
 
 def create_app() -> FastAPI:
-    """Create and configure the FastAPI application.
+    """Create and configure the FastAPI application instance.
 
     Returns:
         Configured FastAPI instance with lifespan-managed DB and OpenAI clients.
@@ -95,8 +105,6 @@ def create_app() -> FastAPI:
             and request.app.state.openai_client is not None
         )
         return {"ok": True, "db_initialized": has_db, "openai_available": has_openai}
-
-    # `public` is already mounted at root above; no additional mounts required here.
 
     # Register application routers
     app.include_router(image_router)
