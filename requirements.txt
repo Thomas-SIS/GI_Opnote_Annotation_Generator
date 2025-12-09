@@ -7,4 +7,4 @@ aiosqlite
 Jinja2
 python-dotenv
 python-multipart
-aiosfiles
+aiofiles
